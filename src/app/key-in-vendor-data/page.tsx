@@ -22,3 +22,5 @@ export default function KeyInVendorDataPage() {
         <VendorProcessor />
       </div>
     </div>
+  );
+}
