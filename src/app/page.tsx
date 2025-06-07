@@ -1,7 +1,7 @@
 // src/app/page.tsx
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import type React from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,8 +9,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { generateVendorReport, type GenerateVendorReportOutput, type GenerateVendorReportInput } from '@/ai/flows/generate-vendor-report';
-import { Loader2, FileText, Printer, Download, AlertCircle, CheckCircle, MinusCircle } from 'lucide-react';
+import { Loader2, FileText, Printer, Download, AlertCircle, CheckCircle, MinusCircle, Save, Search, Users, Trash2 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
+import { useToast } from "@/hooks/use-toast";
 
 // Define the type for input fields
 type VendorInputFields = Omit<GenerateVendorReportInput, 'vendorName'> & { vendorName: string };
@@ -34,12 +35,46 @@ const financialCriteriaLegend = [
   { level: 'Red', quantitative: 'Low Risk', altmanZ: 'Moderate Risk', qualitative: 'High Risk', risk: 'High Risk', color: 'bg-red-100 text-red-800', iconColor: 'text-red-500' },
 ];
 
+const VENDOR_BANK_STORAGE_KEY = 'vendorInformationBank';
 
 export default function VendorInsightsPage() {
   const [formInputs, setFormInputs] = useState<VendorInputFields>(initialInputState);
   const [report, setReport] = useState<GenerateVendorReportOutput | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { toast } = useToast();
+
+  const [savedVendors, setSavedVendors] = useState<GenerateVendorReportInput[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
+
+  // Load vendors from localStorage on mount
+  useEffect(() => {
+    const storedVendors = localStorage.getItem(VENDOR_BANK_STORAGE_KEY);
+    if (storedVendors) {
+      try {
+        const parsedVendors = JSON.parse(storedVendors);
+        if (Array.isArray(parsedVendors)) {
+          setSavedVendors(parsedVendors);
+        } else {
+          console.error("Corrupted vendor data in localStorage: not an array.");
+          localStorage.removeItem(VENDOR_BANK_STORAGE_KEY);
+        }
+      } catch (e) {
+        console.error("Failed to parse vendors from localStorage", e);
+        localStorage.removeItem(VENDOR_BANK_STORAGE_KEY); 
+      }
+    }
+  }, []);
+
+  // Save vendors to localStorage whenever savedVendors state changes
+  useEffect(() => {
+    // Only write to localStorage if there are vendors to save,
+    // or if there was data previously (to handle deleting all vendors)
+    if (savedVendors.length > 0 || localStorage.getItem(VENDOR_BANK_STORAGE_KEY)) {
+        localStorage.setItem(VENDOR_BANK_STORAGE_KEY, JSON.stringify(savedVendors));
+    }
+  }, [savedVendors]);
+
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -49,6 +84,11 @@ export default function VendorInsightsPage() {
   const handleGenerateReport = async () => {
     if (!formInputs.vendorName.trim()) {
       setError('Vendor name cannot be empty.');
+      toast({
+        title: "Validation Error",
+        description: "Vendor name cannot be empty.",
+        variant: "destructive",
+      });
       return;
     }
     setIsLoading(true);
@@ -57,14 +97,22 @@ export default function VendorInsightsPage() {
     try {
       const result = await generateVendorReport(formInputs);
       setReport(result);
+      toast({
+        title: "Report Generated",
+        description: `Successfully generated report for ${formInputs.vendorName}.`,
+      });
     } catch (err) {
       console.error("Error generating report:", err);
-      setError('Failed to generate report. Please try again.');
+      let errorMessage = 'Failed to generate report. Please try again.';
       if (err instanceof Error) {
-        setError(`Failed to generate report: ${err.message}. Please check the console for more details.`);
-      } else {
-        setError('Failed to generate report. An unknown error occurred. Please try again.');
+        errorMessage = `Failed to generate report: ${err.message}. Please check the console for more details.`;
       }
+      setError(errorMessage);
+      toast({
+        title: "Report Generation Failed",
+        description: errorMessage,
+        variant: "destructive",
+      });
     } finally {
       setIsLoading(false);
     }
@@ -74,6 +122,68 @@ export default function VendorInsightsPage() {
     event.preventDefault();
     handleGenerateReport();
   };
+
+  const handleSaveVendor = () => {
+    if (!formInputs.vendorName.trim()) {
+      toast({
+        title: "Cannot Save Vendor",
+        description: "Vendor name is required to save information.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setSavedVendors(prevVendors => {
+      const existingVendorIndex = prevVendors.findIndex(v => v.vendorName === formInputs.vendorName);
+      if (existingVendorIndex > -1) {
+        const updatedVendors = [...prevVendors];
+        updatedVendors[existingVendorIndex] = { ...formInputs };
+         toast({
+          title: "Vendor Updated",
+          description: `Information for ${formInputs.vendorName} has been updated in the bank.`,
+        });
+        return updatedVendors;
+      } else {
+        toast({
+          title: "Vendor Saved",
+          description: `${formInputs.vendorName} has been added to the bank.`,
+        });
+        return [...prevVendors, { ...formInputs }];
+      }
+    });
+  };
+
+  const handleLoadVendor = (vendor: GenerateVendorReportInput) => {
+    setFormInputs({ ...vendor });
+    setReport(null); 
+    setError(null);
+    toast({
+      title: "Vendor Loaded",
+      description: `Information for ${vendor.vendorName} has been loaded into the form.`,
+    });
+  };
+  
+  const handleRemoveVendor = (vendorNameToRemove: string) => {
+    setSavedVendors(prevVendors => prevVendors.filter(v => v.vendorName !== vendorNameToRemove));
+    toast({
+        title: "Vendor Removed",
+        description: `${vendorNameToRemove} has been removed from the bank.`,
+        variant: "destructive"
+    });
+    if (formInputs.vendorName === vendorNameToRemove) {
+        setFormInputs(initialInputState); 
+        setReport(null);
+    }
+  };
+
+  const filteredVendors = useMemo(() => {
+    if (!searchTerm.trim()) {
+      return savedVendors;
+    }
+    return savedVendors.filter(vendor =>
+      vendor.vendorName.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [savedVendors, searchTerm]);
+
 
   const getPrintStyles = () => `
     <style>
@@ -170,7 +280,7 @@ export default function VendorInsightsPage() {
               <div class="risk-level-display risk-${report.determinedRiskLevel}">Determined Risk Level: ${report.determinedRiskLevel}</div>
               
               <h2>Detailed Analysis</h2>
-              <div class="analysis-section">${report.detailedAnalysis}</div>
+              <div class="analysis-section">${report.detailedAnalysis.replace(/\n/g, '<br>')}</div>
 
               <table class="legend-table">
                 <caption>Financial Sub-Element Criteria (Legend)</caption>
@@ -192,10 +302,12 @@ export default function VendorInsightsPage() {
         printWindow.document.write(printContent);
         printWindow.document.close();
         printWindow.focus();
-        // Wait for images and styles to load before printing
-        // setTimeout(() => { printWindow.print(); }, 500); 
       } else {
-        alert('Could not open print window. Please check your browser settings.');
+        toast({
+            title: "Print Error",
+            description: "Could not open print window. Please check your browser settings.",
+            variant: "destructive",
+        });
       }
     }
   };
@@ -247,13 +359,17 @@ export default function VendorInsightsPage() {
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(link.href);
+      toast({
+        title: "Report Downloaded",
+        description: `Report for ${report.nameOfCompanyAssessed} downloaded as a TXT file.`,
+      });
     }
   };
   
   const RiskIcon = ({ level }: { level: string }) => {
     if (level === 'Green') return <CheckCircle className="mr-2 h-5 w-5 text-green-500" />;
     if (level === 'Yellow') return <AlertCircle className="mr-2 h-5 w-5 text-yellow-500" />;
-    if (level === 'Red') return <MinusCircle className="mr-2 h-5 w-5 text-red-500" />; // Or another icon for Red
+    if (level === 'Red') return <MinusCircle className="mr-2 h-5 w-5 text-red-500" />;
     return null;
   };
 
@@ -262,72 +378,121 @@ export default function VendorInsightsPage() {
     <div className="min-h-screen bg-background flex flex-col items-center py-8 px-4">
       <header className="mb-10 text-center">
         <h1 className="text-5xl font-headline font-bold text-primary">Vendor Insights</h1>
-        <p className="text-muted-foreground mt-2 text-lg">AI-Powered Financial Evaluation</p>
+        <p className="text-muted-foreground mt-2 text-lg">AI-Powered Financial Evaluation & Vendor Information Bank</p>
       </header>
 
-      <Card className="w-full max-w-3xl shadow-xl rounded-lg">
-        <CardHeader>
-          <CardTitle className="text-2xl font-headline flex items-center text-primary">
-            <FileText className="mr-3 h-7 w-7" />
-            Generate Vendor Evaluation Report
-          </CardTitle>
-          <CardDescription className="text-md">Enter vendor and evaluation details to get an AI-generated financial report.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="vendorName" className="text-foreground">Vendor Name <span className="text-destructive">*</span></Label>
-                <Input id="vendorName" name="vendorName" type="text" placeholder="e.g., Acme Corp" value={formInputs.vendorName} onChange={handleInputChange} required className="mt-1"/>
+      <div className="w-full max-w-3xl space-y-8">
+        <Card className="shadow-xl rounded-lg">
+          <CardHeader>
+            <CardTitle className="text-2xl font-headline flex items-center text-primary">
+              <FileText className="mr-3 h-7 w-7" />
+              Vendor Evaluation Form
+            </CardTitle>
+            <CardDescription className="text-md">Enter or load vendor details to generate a financial report.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="vendorName" className="text-foreground">Vendor Name <span className="text-destructive">*</span></Label>
+                  <Input id="vendorName" name="vendorName" type="text" placeholder="e.g., Acme Corp" value={formInputs.vendorName} onChange={handleInputChange} required className="mt-1"/>
+                </div>
+                <div>
+                  <Label htmlFor="vendorIndustry" className="text-foreground">Vendor Industry</Label>
+                  <Input id="vendorIndustry" name="vendorIndustry" type="text" placeholder="e.g., Manufacturing" value={formInputs.vendorIndustry} onChange={handleInputChange} className="mt-1"/>
+                </div>
+                <div>
+                  <Label htmlFor="companySize" className="text-foreground">Company Size</Label>
+                  <Input id="companySize" name="companySize" type="text" placeholder="e.g., 500 employees or Large" value={formInputs.companySize} onChange={handleInputChange} className="mt-1"/>
+                </div>
+                <div>
+                  <Label htmlFor="tenderNumber" className="text-foreground">Tender Number</Label>
+                  <Input id="tenderNumber" name="tenderNumber" type="text" placeholder="e.g., TND-2024-001" value={formInputs.tenderNumber} onChange={handleInputChange} className="mt-1"/>
+                </div>
+                <div>
+                  <Label htmlFor="tenderTitle" className="text-foreground">Tender Title</Label>
+                  <Input id="tenderTitle" name="tenderTitle" type="text" placeholder="e.g., Supply of Office Equipment" value={formInputs.tenderTitle} onChange={handleInputChange} className="mt-1"/>
+                </div>
+                <div>
+                  <Label htmlFor="dateOfFinancialEvaluation" className="text-foreground">Date of Financial Evaluation</Label>
+                  <Input id="dateOfFinancialEvaluation" name="dateOfFinancialEvaluation" type="date" value={formInputs.dateOfFinancialEvaluation} onChange={handleInputChange} className="mt-1"/>
+                </div>
+                <div>
+                  <Label htmlFor="evaluationValidityDate" className="text-foreground">Evaluation Validity Date</Label>
+                  <Input id="evaluationValidityDate" name="evaluationValidityDate" type="date" value={formInputs.evaluationValidityDate} onChange={handleInputChange} className="mt-1"/>
+                </div>
+                <div>
+                  <Label htmlFor="evaluatorNameDepartment" className="text-foreground">Evaluator Name/Department</Label>
+                  <Input id="evaluatorNameDepartment" name="evaluatorNameDepartment" type="text" placeholder="e.g., John Doe, Procurement" value={formInputs.evaluatorNameDepartment} onChange={handleInputChange} className="mt-1"/>
+                </div>
               </div>
               <div>
-                <Label htmlFor="vendorIndustry" className="text-foreground">Vendor Industry</Label>
-                <Input id="vendorIndustry" name="vendorIndustry" type="text" placeholder="e.g., Manufacturing" value={formInputs.vendorIndustry} onChange={handleInputChange} className="mt-1"/>
+                <Label htmlFor="keyInformation" className="text-foreground">Key Information / Specific Requests</Label>
+                <Textarea id="keyInformation" name="keyInformation" placeholder="Enter any specific details or areas to focus on..." value={formInputs.keyInformation} onChange={handleInputChange} className="mt-1 min-h-[100px]"/>
               </div>
-              <div>
-                <Label htmlFor="companySize" className="text-foreground">Company Size</Label>
-                <Input id="companySize" name="companySize" type="text" placeholder="e.g., 500 employees or Large" value={formInputs.companySize} onChange={handleInputChange} className="mt-1"/>
+              
+              <div className="flex flex-col sm:flex-row gap-3">
+                <Button type="button" onClick={handleSaveVendor} variant="outline" className="flex-1 border-accent text-accent hover:bg-accent hover:text-accent-foreground text-base py-3">
+                  <Save className="mr-2 h-5 w-5" />
+                  Save Vendor Info
+                </Button>
+                <Button type="submit" disabled={isLoading || !formInputs.vendorName.trim()} className="flex-1 bg-primary hover:bg-primary/90 text-base py-3">
+                  {isLoading ? (
+                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                  ) : (
+                    <FileText className="mr-2 h-5 w-5" />
+                  )}
+                  Generate Report
+                </Button>
               </div>
-              <div>
-                <Label htmlFor="tenderNumber" className="text-foreground">Tender Number</Label>
-                <Input id="tenderNumber" name="tenderNumber" type="text" placeholder="e.g., TND-2024-001" value={formInputs.tenderNumber} onChange={handleInputChange} className="mt-1"/>
-              </div>
-              <div>
-                <Label htmlFor="tenderTitle" className="text-foreground">Tender Title</Label>
-                <Input id="tenderTitle" name="tenderTitle" type="text" placeholder="e.g., Supply of Office Equipment" value={formInputs.tenderTitle} onChange={handleInputChange} className="mt-1"/>
-              </div>
-              <div>
-                <Label htmlFor="dateOfFinancialEvaluation" className="text-foreground">Date of Financial Evaluation</Label>
-                <Input id="dateOfFinancialEvaluation" name="dateOfFinancialEvaluation" type="date" value={formInputs.dateOfFinancialEvaluation} onChange={handleInputChange} className="mt-1"/>
-              </div>
-              <div>
-                <Label htmlFor="evaluationValidityDate" className="text-foreground">Evaluation Validity Date</Label>
-                <Input id="evaluationValidityDate" name="evaluationValidityDate" type="date" value={formInputs.evaluationValidityDate} onChange={handleInputChange} className="mt-1"/>
-              </div>
-              <div>
-                <Label htmlFor="evaluatorNameDepartment" className="text-foreground">Evaluator Name/Department</Label>
-                <Input id="evaluatorNameDepartment" name="evaluatorNameDepartment" type="text" placeholder="e.g., John Doe, Procurement" value={formInputs.evaluatorNameDepartment} onChange={handleInputChange} className="mt-1"/>
-              </div>
-            </div>
-            <div>
-              <Label htmlFor="keyInformation" className="text-foreground">Key Information / Specific Requests</Label>
-              <Textarea id="keyInformation" name="keyInformation" placeholder="Enter any specific details or areas to focus on..." value={formInputs.keyInformation} onChange={handleInputChange} className="mt-1 min-h-[100px]"/>
-            </div>
-            
-            <Button type="submit" disabled={isLoading || !formInputs.vendorName.trim()} className="w-full bg-primary hover:bg-primary/90 text-base py-3">
-              {isLoading ? (
-                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-              ) : (
-                <FileText className="mr-2 h-5 w-5" />
-              )}
-              Generate Report
-            </Button>
-            {error && <p className="text-sm text-destructive text-center">{error}</p>}
-          </form>
-        </CardContent>
-      </Card>
+              {error && <p className="text-sm text-destructive text-center">{error}</p>}
+            </form>
+          </CardContent>
+        </Card>
 
-      {isLoading && (
+        <Card className="shadow-xl rounded-lg">
+          <CardHeader>
+            <CardTitle className="text-2xl font-headline flex items-center text-primary">
+              <Users className="mr-3 h-7 w-7" />
+              Vendor Information Bank
+            </CardTitle>
+            <CardDescription className="text-md">Search, load, or remove saved vendor information.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center space-x-2">
+                <Search className="h-5 w-5 text-muted-foreground" />
+                <Input 
+                    placeholder="Search by vendor name..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="flex-grow"
+                />
+            </div>
+            {filteredVendors.length > 0 ? (
+              <ul className="space-y-2 max-h-60 overflow-y-auto pr-2 border rounded-md p-2">
+                {filteredVendors.map(vendor => (
+                  <li key={vendor.vendorName} className="flex items-center justify-between p-3 bg-background hover:bg-muted/50 rounded-md shadow-sm border">
+                    <span className="font-medium text-foreground truncate pr-2" title={vendor.vendorName}>{vendor.vendorName}</span>
+                    <div className="flex-shrink-0 space-x-2">
+                        <Button variant="outline" size="sm" onClick={() => handleLoadVendor(vendor)}>Load</Button>
+                        <Button variant="destructive" size="sm" onClick={() => handleRemoveVendor(vendor.vendorName)}>
+                            <Trash2 className="h-4 w-4" />
+                        </Button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-muted-foreground text-center py-4">
+                {savedVendors.length === 0 ? "No vendors saved yet. Add some using the form above!" : "No vendors match your search."}
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+
+      {isLoading && !report && (
         <Card className="mt-8 w-full max-w-3xl shadow-xl animate-pulse rounded-lg">
           <CardHeader><div className="h-8 bg-muted rounded w-3/4"></div></CardHeader>
           <CardContent className="space-y-4 pt-4">
@@ -466,3 +631,4 @@ export default function VendorInsightsPage() {
     </div>
   );
 }
+
