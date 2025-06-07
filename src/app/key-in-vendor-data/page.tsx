@@ -8,7 +8,7 @@ export default function KeyInVendorDataPage() {
   return (
     <div className="min-h-screen bg-background flex flex-col items-center py-8 px-4">
       <header className="mb-10 text-center">
-        <h1 className="text-5xl font-headline font-bold text-primary flex items-center justify-center">
+        <h1 className="text-5xl font-headline font-black text-primary flex items-center justify-center">
           <FilePlus className="mr-4 h-12 w-12" />
           Enter New Vendor Information
         </h1>

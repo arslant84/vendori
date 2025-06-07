@@ -4,7 +4,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { Home, FilePlus, Search, BarChartBig } from 'lucide-react'; // Added BarChartBig as a placeholder for logo
+import { Home, FilePlus, Search, BarChartBig } from 'lucide-react'; 
 import { cn } from '@/lib/utils';
 
 const navItems = [

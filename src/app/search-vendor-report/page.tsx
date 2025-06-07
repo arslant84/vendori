@@ -7,7 +7,7 @@ import { VendorProcessor, VENDOR_BANK_STORAGE_KEY, type VendorInputFields, initi
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Search, Users, Trash2, Edit, Eye } from 'lucide-react';
+import { Search, Users, Trash2, Edit } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 
 export default function SearchVendorReportPage() {
@@ -78,7 +78,7 @@ export default function SearchVendorReportPage() {
   return (
     <div className="min-h-screen bg-background flex flex-col items-center py-8 px-4">
       <header className="mb-10 text-center">
-        <h1 className="text-5xl font-headline font-bold text-primary flex items-center justify-center">
+        <h1 className="text-5xl font-headline font-black text-primary flex items-center justify-center">
           <Search className="mr-4 h-12 w-12" />
           Search Vendor Reports
         </h1>
@@ -90,7 +90,7 @@ export default function SearchVendorReportPage() {
       <div className="w-full max-w-3xl space-y-8">
         <Card className="shadow-xl rounded-lg">
           <CardHeader>
-            <CardTitle className="text-2xl font-headline flex items-center text-primary">
+            <CardTitle className="text-2xl font-headline font-bold flex items-center text-primary">
               <Users className="mr-3 h-7 w-7" />
               Vendor Information Bank
             </CardTitle>
@@ -132,7 +132,7 @@ export default function SearchVendorReportPage() {
 
         {selectedVendor && (
           <div className="mt-8 w-full">
-             <h2 className="text-3xl font-headline font-bold text-primary mb-6 text-center">Process Selected Vendor</h2>
+             <h2 className="text-3xl font-headline font-black text-primary mb-6 text-center">Process Selected Vendor</h2>
             <VendorProcessor initialData={selectedVendor} onVendorSaved={handleVendorListUpdate} />
           </div>
         )}

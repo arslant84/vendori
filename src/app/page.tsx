@@ -8,7 +8,7 @@ export default function LandingPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-background to-muted flex flex-col items-center justify-center p-6">
       <header className="text-center mb-12">
-        <h1 className="text-6xl font-headline font-extrabold text-primary mb-4">
+        <h1 className="text-6xl font-headline font-black text-primary mb-4">
           Vendor Insights
         </h1>
         <p className="text-2xl text-muted-foreground max-w-2xl mx-auto">
@@ -19,7 +19,7 @@ export default function LandingPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full max-w-4xl">
         <Card className="shadow-2xl hover:shadow-primary/30 transition-shadow duration-300 rounded-xl">
           <CardHeader>
-            <CardTitle className="text-3xl font-headline flex items-center text-accent">
+            <CardTitle className="text-3xl font-headline font-bold flex items-center text-accent">
               <FilePlus className="mr-3 h-8 w-8" />
               Enter New Vendor Data
             </CardTitle>
@@ -39,7 +39,7 @@ export default function LandingPage() {
 
         <Card className="shadow-2xl hover:shadow-primary/30 transition-shadow duration-300 rounded-xl">
           <CardHeader>
-            <CardTitle className="text-3xl font-headline flex items-center text-accent">
+            <CardTitle className="text-3xl font-headline font-bold flex items-center text-accent">
               <Search className="mr-3 h-8 w-8" />
               Search & Retrieve Reports
             </CardTitle>
