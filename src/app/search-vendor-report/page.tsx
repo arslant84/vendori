@@ -1,51 +1,64 @@
+
 // src/app/search-vendor-report/page.tsx
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/contexts/AuthContext';
 import type { GenerateVendorReportInput } from '@/ai/flows/generate-vendor-report';
 import { VendorProcessor, VENDOR_BANK_STORAGE_KEY, type VendorInputFields, initialInputState } from '@/components/vendor/vendor-processor';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Search, Users, Trash2, Edit } from 'lucide-react';
+import { Search, Users, Trash2, Edit, Loader2 } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 
 export default function SearchVendorReportPage() {
+  const { user, loading: authLoading } = useAuth();
+  const router = useRouter();
+
   const [savedVendors, setSavedVendors] = useState<GenerateVendorReportInput[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedVendor, setSelectedVendor] = useState<VendorInputFields | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
-    const storedVendors = localStorage.getItem(VENDOR_BANK_STORAGE_KEY);
-    if (storedVendors) {
-      try {
-        const parsedVendors = JSON.parse(storedVendors);
-        if (Array.isArray(parsedVendors)) {
-          setSavedVendors(parsedVendors);
+    if (!authLoading && !user) {
+      router.push('/login?redirect=/search-vendor-report');
+    }
+  }, [user, authLoading, router]);
+  
+  useEffect(() => {
+    if (user) { // Only load from localStorage if user is authenticated
+      const storedVendors = localStorage.getItem(VENDOR_BANK_STORAGE_KEY);
+      if (storedVendors) {
+        try {
+          const parsedVendors = JSON.parse(storedVendors);
+          if (Array.isArray(parsedVendors)) {
+            setSavedVendors(parsedVendors);
+          }
+        } catch (e) {
+          console.error("Failed to parse vendors from localStorage", e);
         }
-      } catch (e) {
-        console.error("Failed to parse vendors from localStorage", e);
       }
     }
-  }, []);
+  }, [user]); // Rerun when user state changes
+
 
   const handleVendorListUpdate = (updatedVendors: GenerateVendorReportInput[]) => {
     setSavedVendors(updatedVendors);
-    // If the currently selected vendor was updated, update it in state too
     if (selectedVendor && updatedVendors.some(v => v.vendorName === selectedVendor.vendorName)) {
         const refreshedVendor = updatedVendors.find(v => v.vendorName === selectedVendor.vendorName);
         if (refreshedVendor) {
             setSelectedVendor(refreshedVendor as VendorInputFields);
         }
     } else if (selectedVendor && !updatedVendors.some(v => v.vendorName === selectedVendor.vendorName)) {
-        // If the selected vendor was removed
         setSelectedVendor(null);
     }
   };
 
   const handleLoadVendor = (vendor: GenerateVendorReportInput) => {
-    setSelectedVendor({ ...initialInputState, ...vendor }); // Ensure all fields are present
+    setSelectedVendor({ ...initialInputState, ...vendor }); 
     toast({
       title: "Vendor Loaded",
       description: `Information for ${vendor.vendorName} loaded for processing.`,
@@ -74,6 +87,14 @@ export default function SearchVendorReportPage() {
       vendor.vendorName.toLowerCase().includes(searchTerm.toLowerCase())
     );
   }, [savedVendors, searchTerm]);
+
+  if (authLoading || !user) {
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background flex flex-col items-center py-8 px-4">
