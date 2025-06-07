@@ -1,43 +1,20 @@
-
 // src/components/layout/app-navigation.tsx
 'use client';
 
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { Home, FilePlus, Search, BarChartBig, LogIn, LogOut } from 'lucide-react';
+import { Home, FilePlus, Search, BarChartBig } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useAuth } from '@/contexts/AuthContext';
-import { auth } from '@/lib/firebase';
-import { signOut } from 'firebase/auth';
-import { useToast } from '@/hooks/use-toast';
 
-const publicNavItems = [
+const navItems = [
   { href: '/', label: 'Home', icon: Home },
-];
-
-const protectedNavItems = [
   { href: '/key-in-vendor-data', label: 'Enter Vendor Data', icon: FilePlus },
   { href: '/search-vendor-report', label: 'Search Reports', icon: Search },
 ];
 
 export function AppNavigation() {
   const pathname = usePathname();
-  const router = useRouter();
-  const { user } = useAuth();
-  const { toast } = useToast();
-
-  const handleLogout = async () => {
-    try {
-      await signOut(auth);
-      toast({ title: 'Logged Out', description: 'You have been successfully logged out.' });
-      router.push('/login');
-    } catch (error: any) {
-      toast({ title: 'Logout Failed', description: error.message, variant: 'destructive' });
-    }
-  };
-
-  const navItems = user ? [...publicNavItems, ...protectedNavItems] : publicNavItems;
 
   return (
     <nav className="bg-card border-b border-border shadow-sm sticky top-0 z-50">
@@ -69,21 +46,6 @@ export function AppNavigation() {
                   </Button>
                 </Link>
               ))}
-            </div>
-            <div className="ml-6">
-              {user ? (
-                <Button onClick={handleLogout} variant="outline" className="border-primary text-primary hover:bg-primary hover:text-primary-foreground">
-                  <LogOut className="mr-2 h-5 w-5" />
-                  Logout
-                </Button>
-              ) : (
-                <Link href="/login" passHref>
-                  <Button className="bg-primary text-primary-foreground hover:bg-primary/90">
-                    <LogIn className="mr-2 h-5 w-5" />
-                    Login
-                  </Button>
-                </Link>
-              )}
             </div>
           </div>
           {/* Mobile menu button can be added here if needed for responsiveness */}

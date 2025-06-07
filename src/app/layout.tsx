@@ -1,9 +1,7 @@
-
 import type {Metadata} from 'next';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 import { AppNavigation } from '@/components/layout/app-navigation';
-import { AuthProvider } from '@/contexts/AuthContext'; // Import AuthProvider
 
 export const metadata: Metadata = {
   title: 'Vendor Insights',
@@ -23,11 +21,9 @@ export default function RootLayout({
         <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;700;900&display=swap" rel="stylesheet"></link>
       </head>
       <body className="font-body font-light antialiased bg-background text-foreground">
-        <AuthProvider> {/* Wrap with AuthProvider */}
           <AppNavigation />
           <main>{children}</main>
           <Toaster />
-        </AuthProvider>
       </body>
     </html>
   );
