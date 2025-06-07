@@ -26,7 +26,7 @@ const GenerateVendorReportInputSchema = z.object({
 export type GenerateVendorReportInput = z.infer<typeof GenerateVendorReportInputSchema>;
 
 const GenerateVendorReportOutputSchema = z.object({
-  overallResult: z.string().describe('The overall evaluation result or status (e.g., "Favorable", "Requires Monitoring", "High Risk").'),
+  overallResult: z.string().describe('The overall evaluation result or status (e.g., "Favorable", "Requires Monitoring", "High Risk"). This should be a concise statement for the "VENDOR DATA BANK FOR FINANCIAL EVALUATION" section.'),
   nameOfCompanyAssessed: z.string().describe('The name of the company being assessed (should match input vendorName).'),
   tenderNumber: z.string().describe('The tender number (should match input or be "N/A" if not provided).'),
   tenderTitle: z.string().describe('The tender title (should match input or be "N/A" if not provided).'),
@@ -47,11 +47,11 @@ const GenerateVendorReportOutputSchema = z.object({
     qualitativeBand: z.string().describe('The band associated with the qualitative assessment.'),
     qualitativeRiskCategory: z.string().describe('The risk category based on qualitative analysis.'),
 
-    overallFinancialEvaluationResult: z.string().describe('A conclusive statement on the overall financial evaluation.'),
+    overallFinancialEvaluationResult: z.string().describe('A conclusive statement on the overall financial evaluation. This will be displayed as part of the "SUMMARY OF VENDOR FINANCIAL EVALUATIONS".'),
   }),
 
-  determinedRiskLevel: z.enum(["Green", "Yellow", "Red"]).describe('The overall determined risk level corresponding to Green (Low Risk), Yellow (Moderate Risk), or Red (High Risk) criteria.'),
-  detailedAnalysis: z.string().describe('A comprehensive textual analysis supporting the evaluation, including financial details, strengths, weaknesses, and justifications for scores and risk categories.'),
+  determinedRiskLevel: z.enum(["Green", "Yellow", "Red"]).describe('The overall determined risk level corresponding to Green (Low Risk), Yellow (Moderate Risk), or Red (High Risk) criteria, based on the "FINANCIAL SUB-ELEMENT CRITERIA".'),
+  detailedAnalysis: z.string().describe('A comprehensive textual analysis supporting the evaluation, including financial details, strengths, weaknesses, and justifications for scores and risk categories. This section is separate from the summary tables.'),
 });
 export type GenerateVendorReportOutput = z.infer<typeof GenerateVendorReportOutputSchema>;
 
@@ -63,8 +63,7 @@ const prompt = ai.definePrompt({
   name: 'generateVendorReportPrompt',
   input: {schema: GenerateVendorReportInputSchema},
   output: {schema: GenerateVendorReportOutputSchema},
-  prompt: `You are an expert financial analyst AI specializing in comprehensive vendor evaluations.
-Your task is to generate a detailed financial evaluation report for the given vendor, strictly adhering to the output schema.
+  prompt: `You are an expert financial analyst AI. Your task is to generate a detailed financial evaluation report for the given vendor, strictly adhering to the output schema and the requested format.
 
 Vendor Details:
 - Name: {{{vendorName}}}
@@ -78,28 +77,33 @@ Vendor Details:
 {{#if keyInformation}}- Key Information/Specific Requests: {{{keyInformation}}}{{/if}}
 
 Instructions for Report Generation:
-1.  **Vendor Data Bank Section**:
-    *   \`overallResult\`: Provide a concise overall assessment (e.g., "Favorable", "Requires Monitoring", "High Risk").
+
+1.  **VENDOR DATA BANK FOR FINANCIAL EVALUATION Section**:
+    *   \`overallResult\`: Provide a concise overall assessment status (e.g., "Favorable", "Requires Monitoring", "High Risk").
     *   Populate \`nameOfCompanyAssessed\` with the input \`vendorName\`.
     *   Populate \`tenderNumber\`, \`tenderTitle\`, \`dateOfFinancialEvaluation\`, \`evaluationValidityDate\`, \`evaluatorNameDepartment\` directly from the provided input if available. If an optional input field is not provided, output "N/A".
-2.  **Summary of Vendor Financial Evaluations Section**:
+
+2.  **SUMMARY OF VENDOR FINANCIAL EVALUATIONS Section**:
     *   For Quantitative, Altman-Z, and Qualitative categories:
         *   \`score\`: Generate a relevant score. For Quantitative and Altman-Z, this should be numerical (e.g., "3.5", "2.1"). For Qualitative, it can be a descriptive score (e.g., "Strong", "Satisfactory", "Weak") or a numerical representation if appropriate (e.g., "1.5").
         *   \`band\`: Assign a band based on the score (e.g., "A", "B", "C" or "Excellent", "Good", "Fair").
-        *   \`riskCategory\`: Determine the risk category (e.g., "Low Risk", "Moderate Risk", "High Risk").
-    *   \`overallFinancialEvaluationResult\`: Provide a concluding statement summarizing the findings from the quantitative, Altman-Z, and qualitative assessments.
-3.  **Financial Sub-Element Criteria Guidance (for your internal use)**:
-    *   Use the following as a general guide for risk assessment. Your output for \`determinedRiskLevel\` should align with this framework:
-        *   Green (Low Risk): Generally implies Quantitative > 3, Altman-Z 2-3, Qualitative < 2 (lower is better for qualitative score if numeric).
-        *   Yellow (Moderate Risk): Generally implies Quantitative >2.6, Altman-Z 1.1-2.6, Qualitative < 1.1.
-        *   Red (High Risk): Generally implies lower Quantitative scores, lower Altman-Z scores, and higher Qualitative risk scores.
-    *   \`determinedRiskLevel\`: Based on your comprehensive analysis, classify the vendor's overall financial risk into "Green", "Yellow", or "Red". This should be consistent with your evaluation and the general spirit of the criteria above.
-4.  **Detailed Analysis**:
-    *   \`detailedAnalysis\`: Provide a thorough narrative. This section is crucial. It should include:
+        *   \`riskCategory\`: Determine the risk category (e.g., "Low Risk", "Moderate Risk", "High Risk") for each individual component.
+    *   \`overallFinancialEvaluationResult\`: Provide a concluding statement summarizing the findings from the quantitative, Altman-Z, and qualitative assessments. This is a key summary text.
+
+3.  **FINANCIAL SUB-ELEMENT CRITERIA Guidance (for your internal use to determine \`determinedRiskLevel\` output)**:
+    *   Use the following as a general guide for your overall risk assessment. Your output for \`determinedRiskLevel\` should align with this framework:
+        *   Green (Low Overall Risk): Generally implies Quantitative score > 3, Altman-Z score is between 2 and 3, and Qualitative score is < 2 (if numeric, lower is better for qualitative).
+        *   Yellow (Moderate Overall Risk): Generally implies Quantitative score > 2.6, Altman-Z score is between 1.1 and 2.6, and Qualitative score is < 1.1.
+        *   Red (High Overall Risk): If the overall risk is determined as Red, this often means the Qualitative assessment indicates 'High Risk', the Altman-Z score might suggest 'Moderate Risk', and even if the Quantitative analysis appears 'Low Risk' in isolation, the combination of other factors leads to an overall 'Red' determination.
+    *   \`determinedRiskLevel\`: Based on your comprehensive analysis of all factors, classify the vendor's overall financial risk into "Green", "Yellow", or "Red". This is a single output field reflecting your holistic judgment.
+
+4.  **Detailed Analysis (Separate Section)**:
+    *   \`detailedAnalysis\`: Provide a thorough narrative. This section is crucial and supports the summary. It should include:
         *   An overview of the vendor's financial health.
         *   Analysis of key financial statements/ratios (if available or inferable).
         *   Strengths and weaknesses.
-        *   Justification for the scores, bands, and risk categories assigned in the 'Summary of Vendor Financial Evaluations' section.
+        *   Justification for the scores, bands, and risk categories assigned in the 'SUMMARY OF VENDOR FINANCIAL EVALUATIONS' section.
+        *   An explanation of how you arrived at the \`determinedRiskLevel\`.
         *   Address any \`keyInformation\` or specific requests provided.
         *   The analysis should be comprehensive and data-driven. If specific financial data isn't directly provided, you may make reasonable assumptions based on industry, company size, etc., and should state them if doing so.
 
@@ -117,13 +121,15 @@ const generateVendorReportFlow = ai.defineFlow(
     // Ensure names match for output
     const effectiveInput = {
         ...input,
-        nameOfCompanyAssessed: input.vendorName,
+        nameOfCompanyAssessed: input.vendorName, // Ensure this is passed for the prompt
     };
     const {output} = await prompt(effectiveInput);
-    // Ensure fields that should mirror input are correctly set, or N/A if undefined
+
+    // Ensure fields that should mirror input are correctly set to the input value, or "N/A" if the input was undefined/empty.
+    // The AI might sometimes hallucinate or omit these if not explicitly set post-generation.
     return {
-        ...output!,
-        nameOfCompanyAssessed: input.vendorName || "N/A",
+        ...output!, // Assume output is non-null if successful
+        nameOfCompanyAssessed: input.vendorName || "N/A", // Should always be the vendor name.
         tenderNumber: input.tenderNumber || "N/A",
         tenderTitle: input.tenderTitle || "N/A",
         dateOfFinancialEvaluation: input.dateOfFinancialEvaluation || "N/A",
@@ -132,3 +138,4 @@ const generateVendorReportFlow = ai.defineFlow(
     };
   }
 );
+

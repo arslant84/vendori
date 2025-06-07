@@ -27,11 +27,13 @@ export const initialInputState: VendorInputFields = {
   evaluatorNameDepartment: '',
 };
 
+// Updated to match the new image format
 export const financialCriteriaLegend = [
-  { level: 'Green', quantitative: '> 3', altmanZ: '2 - 3', qualitative: '< 2', risk: 'Low Risk', color: 'bg-green-100 text-green-800', iconColor: 'text-green-500' },
-  { level: 'Yellow', quantitative: '> 2.6', altmanZ: '1.1 - 2.6', qualitative: '< 1.1', risk: 'Moderate Risk', color: 'bg-yellow-100 text-yellow-800', iconColor: 'text-yellow-500' },
-  { level: 'Red', quantitative: 'Low Risk', altmanZ: 'Moderate Risk', qualitative: 'High Risk', risk: 'High Risk', color: 'bg-red-100 text-red-800', iconColor: 'text-red-500' },
+  { level: 'Green', quantitative: '> 3', altmanZ: '2 – 3', qualitative: '< 2', color: 'bg-green-100 text-green-800', iconColor: 'text-green-500' },
+  { level: 'Yellow', quantitative: '>2.6', altmanZ: '1.1 – 2.6', qualitative: '<1.1', color: 'bg-yellow-100 text-yellow-800', iconColor: 'text-yellow-500' },
+  { level: 'Red', quantitative: 'Low Risk', altmanZ: 'Moderate Risk', qualitative: 'High Risk', color: 'bg-red-100 text-red-800', iconColor: 'text-red-500' },
 ];
+
 
 export const VENDOR_BANK_STORAGE_KEY = 'vendorInformationBank';
 
@@ -152,31 +154,41 @@ export function VendorProcessor({ initialData, onVendorSaved }: VendorProcessorP
       body { font-family: 'Montserrat', sans-serif; font-weight: 300; margin: 0; padding: 20px; color: #333; background-color: #fff; }
       .report-container { border: 1px solid #e0e0e0; border-radius: 8px; padding: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
       h1, h2, h3, h4 { color: #3F51B5; margin-top: 0; font-family: 'Montserrat', sans-serif; }
-      h1 { font-size: 28px; text-align: center; margin-bottom: 20px; border-bottom: 2px solid #3F51B5; padding-bottom: 10px; font-weight: 900;}
-      h2 { font-size: 22px; margin-top: 25px; margin-bottom: 10px; color: #009688; border-bottom: 1px solid #eee; padding-bottom: 5px; font-weight: 700;}
+      h1 { font-size: 24px; text-align: center; margin-bottom: 20px; font-weight: 900; text-transform: uppercase; } /* VENDOR DATA BANK FOR FINANCIAL EVALUATION */
+      h2 { font-size: 20px; margin-top: 25px; margin-bottom: 10px; color: #000; border-bottom: 1px solid #eee; padding-bottom: 5px; font-weight: 700; text-transform: uppercase; text-align: center;} /* SUMMARY OF VENDOR FINANCIAL EVALUATIONS / FINANCIAL SUB-ELEMENT CRITERIA */
       h3 { font-size: 18px; margin-top: 20px; margin-bottom: 8px; color: #555; font-weight: 700;}
       h4 { font-size: 16px; margin-top: 15px; margin-bottom: 5px; color: #777; font-weight: 700;}
-      p, li { line-height: 1.6; font-size: 14px; margin-bottom: 10px; font-weight: 300; }
-      strong { font-weight: 700; }
-      .grid-display { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 20px; margin-bottom: 15px; }
-      .grid-display strong { color: #3F51B5; }
-      .full-width { grid-column: span 2; }
-      table { width: 100%; border-collapse: collapse; margin-top: 10px; margin-bottom: 20px; font-size: 13px; }
-      th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
-      th { background-color: #f0f4ff; color: #3F51B5; font-weight: 700; }
-      .summary-table th:first-child { width: 100px; }
-      .risk-level-display { padding: 10px; border-radius: 6px; margin-top: 5px; font-weight: 700; text-align: center; }
+      p, li { line-height: 1.6; font-size: 12px; margin-bottom: 10px; font-weight: 300; }
+      .data-bank-table { width: 100%; border-collapse: collapse; margin-bottom: 15px; font-size: 12px; }
+      .data-bank-table td { border: 1px solid #ddd; padding: 8px; }
+      .data-bank-table td:first-child { background-color: #e0e8f0; font-weight: 700; width: 30%; } /* Light blue for labels */
+      .summary-eval-table { width: 100%; border-collapse: collapse; margin-top: 10px; margin-bottom: 20px; font-size: 12px; }
+      .summary-eval-table th, .summary-eval-table td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+      .summary-eval-table th { background-color: #333; color: white; font-weight: 700; text-align: center; } /* Dark header for Quantitative, Altman-Z, etc. */
+      .summary-eval-table td:first-child { background-color: #e0e8f0; font-weight: 700; } /* Light blue for Score, Band, Risk Category labels */
+      .overall-eval-result-text { margin-top: 5px; margin-bottom: 15px; font-weight: 300; font-size: 12px; padding: 8px; border: 1px solid #ddd; background-color: #f9f9f9;}
+      .risk-level-display { padding: 10px; border-radius: 6px; margin-top: 15px; font-weight: 700; text-align: center; font-size: 14px; }
       .risk-Green { background-color: #e6fffa; color: #00796b; border: 1px solid #b2dfdb; }
       .risk-Yellow { background-color: #fff9c4; color: #fbc02d; border: 1px solid #fff59d; }
       .risk-Red { background-color: #ffebee; color: #c62828; border: 1px solid #ffcdd2; }
-      .analysis-section { white-space: pre-wrap; background-color: #f9f9f9; padding: 15px; border-radius: 6px; border: 1px solid #eee; font-weight: 300;}
-      .legend-table { margin-top: 20px; }
-      .legend-table th, .legend-table td { text-align: center; }
-      .print-footer { margin-top: 30px; text-align: center; font-size: 12px; color: #888; border-top: 1px solid #eee; padding-top: 10px; }
+      .detailed-analysis-title { font-size: 20px; margin-top: 25px; margin-bottom: 10px; color: #000; border-bottom: 1px solid #eee; padding-bottom: 5px; font-weight: 700; text-transform: uppercase; text-align: left;}
+      .analysis-section { white-space: pre-wrap; background-color: #f9f9f9; padding: 15px; border-radius: 6px; border: 1px solid #eee; font-weight: 300; font-size: 12px;}
+      .criteria-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; }
+      .criteria-table th, .criteria-table td { border: 1px solid #ddd; padding: 8px; text-align: center; }
+      .criteria-table th { background-color: #e0e8f0; color: #333; font-weight: 700; } /* Light blue for headers */
+      .criteria-table .level-green { background-color: #a3e6cb; color: #059669; font-weight: 700; } /* Tailwind green-300, green-700 */
+      .criteria-table .level-yellow { background-color: #fde047; color: #ca8a04; font-weight: 700; } /* Tailwind yellow-400, yellow-600 */
+      .criteria-table .level-red { background-color: #fca5a5; color: #b91c1c; font-weight: 700; } /* Tailwind red-400, red-700 */
+      .print-footer { margin-top: 30px; text-align: center; font-size: 10px; color: #888; border-top: 1px solid #eee; padding-top: 10px; }
       @media print {
         body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-        .report-container { box-shadow: none; border: none; }
+        .report-container { box-shadow: none; border: none; padding: 0;}
         .no-print { display: none !important; }
+        h1 { font-size: 20px; }
+        h2 { font-size: 18px; }
+        p, li, td, th { font-size: 11px; }
+        .data-bank-table td, .summary-eval-table td, .summary-eval-table th, .criteria-table td, .criteria-table th { padding: 6px; }
+        .analysis-section { padding: 10px; }
       }
     </style>
   `;
@@ -192,66 +204,69 @@ export function VendorProcessor({ initialData, onVendorSaved }: VendorProcessorP
           </head>
           <body>
             <div class="report-container">
-              <h1>VENDOR FINANCIAL EVALUATION</h1>
-              
-              <h2>Vendor Data Bank</h2>
-              <div class="grid-display">
-                <div><strong>Overall Result:</strong> ${report.overallResult}</div>
-                <div><strong>Name of Company Assessed:</strong> ${report.nameOfCompanyAssessed}</div>
-                <div><strong>Tender No.:</strong> ${report.tenderNumber}</div>
-                <div><strong>Tender Title:</strong> ${report.tenderTitle}</div>
-                <div><strong>Date of Financial Evaluation:</strong> ${report.dateOfFinancialEvaluation}</div>
-                <div><strong>Evaluation Validity Date:</strong> ${report.evaluationValidityDate}</div>
-                <div class="full-width"><strong>Evaluator Name/Department:</strong> ${report.evaluatorNameDepartment}</div>
-              </div>
+              <h1>VENDOR DATA BANK FOR FINANCIAL EVALUATION</h1>
+              <table class="data-bank-table">
+                <tr><td>Overall Result</td><td>${report.overallResult}</td></tr>
+                <tr><td>Name of Company Assessed</td><td>${report.nameOfCompanyAssessed}</td></tr>
+                <tr><td>Tender No.</td><td>${report.tenderNumber}</td></tr>
+                <tr><td>Tender Title</td><td>${report.tenderTitle}</td></tr>
+                <tr><td>Date of Financial Evaluation</td><td>${report.dateOfFinancialEvaluation}</td></tr>
+                <tr><td>Evaluation Validity Date</td><td>${report.evaluationValidityDate}</td></tr>
+                <tr><td>Evaluator Name/Department</td><td>${report.evaluatorNameDepartment}</td></tr>
+              </table>
 
-              <h2>Summary of Vendor Financial Evaluations</h2>
-              <table class="summary-table">
+              <h2>SUMMARY OF VENDOR FINANCIAL EVALUATIONS</h2>
+              <table class="summary-eval-table">
                 <thead>
                   <tr>
                     <th></th>
                     <th>Quantitative</th>
-                    <th>Altman-Z</th>
+                    <th>Altman - Z</th>
                     <th>Qualitative</th>
                   </tr>
                 </thead>
                 <tbody>
                   <tr>
-                    <td><strong>Score</strong></td>
+                    <td>Score</td>
                     <td>${report.summaryOfEvaluations.quantitativeScore}</td>
                     <td>${report.summaryOfEvaluations.altmanZScore}</td>
                     <td>${report.summaryOfEvaluations.qualitativeScore}</td>
                   </tr>
                   <tr>
-                    <td><strong>Band</strong></td>
+                    <td>Band</td>
                     <td>${report.summaryOfEvaluations.quantitativeBand}</td>
                     <td>${report.summaryOfEvaluations.altmanZBand}</td>
                     <td>${report.summaryOfEvaluations.qualitativeBand}</td>
                   </tr>
                   <tr>
-                    <td><strong>Risk Category</strong></td>
+                    <td>Risk Category</td>
                     <td>${report.summaryOfEvaluations.quantitativeRiskCategory}</td>
                     <td>${report.summaryOfEvaluations.altmanZRiskCategory}</td>
                     <td>${report.summaryOfEvaluations.qualitativeRiskCategory}</td>
                   </tr>
                 </tbody>
               </table>
-              <h3>Overall Financial Evaluation Result:</h3>
-              <p>${report.summaryOfEvaluations.overallFinancialEvaluationResult}</p>
-
-              <h2>Financial Risk Level</h2>
-              <div class="risk-level-display risk-${report.determinedRiskLevel}">Determined Risk Level: ${report.determinedRiskLevel}</div>
+              <p class="overall-eval-result-text"><strong>Overall Financial Evaluation Result:</strong> ${report.summaryOfEvaluations.overallFinancialEvaluationResult}</p>
               
-              <h2>Detailed Analysis</h2>
+              <div class="risk-level-display risk-${report.determinedRiskLevel}">Determined Risk Level: ${report.determinedRiskLevel}</div>
+
+              <h3 class="detailed-analysis-title">Detailed Analysis</h3>
               <div class="analysis-section">${report.detailedAnalysis.replace(/\n/g, '<br>')}</div>
 
-              <table class="legend-table">
-                <caption>Financial Sub-Element Criteria (Legend)</caption>
-                <thead><tr><th>Criteria</th><th>Quantitative</th><th>Altman-Z</th><th>Qualitative</th><th>Risk</th></tr></thead>
+              <h2>FINANCIAL SUB-ELEMENT CRITERIA</h2>
+              <table class="criteria-table">
+                <thead>
+                  <tr>
+                    <th>Financial Criteria Sub-Element</th>
+                    <th>Quantitative:</th>
+                    <th>Altman-Z:</th>
+                    <th>Qualitative:</th>
+                  </tr>
+                </thead>
                 <tbody>
                   ${financialCriteriaLegend.map(item => `
-                    <tr style="background-color: ${item.color.split(' ')[0].replace('bg-', '').replace('-100', '100')}; color: ${item.color.split(' ')[1].replace('text-', '').replace('-800', '800')};">
-                      <td>${item.level}</td><td>${item.quantitative}</td><td>${item.altmanZ}</td><td>${item.qualitative}</td><td>${item.risk}</td>
+                    <tr class="level-${item.level.toLowerCase()}">
+                      <td>${item.level}</td><td>${item.quantitative}</td><td>${item.altmanZ}</td><td>${item.qualitative}</td>
                     </tr>`).join('')}
                 </tbody>
               </table>
@@ -277,11 +292,8 @@ export function VendorProcessor({ initialData, onVendorSaved }: VendorProcessorP
 
   const handleDownloadReport = () => {
     if (report) {
-      let reportText = `VENDOR FINANCIAL EVALUATION REPORT\n`;
-      reportText += `===================================\n\n`;
-
-      reportText += `Vendor Data Bank\n`;
-      reportText += `----------------\n`;
+      let reportText = `VENDOR DATA BANK FOR FINANCIAL EVALUATION\n`;
+      reportText += `=========================================\n`;
       reportText += `Overall Result: ${report.overallResult}\n`;
       reportText += `Name of Company Assessed: ${report.nameOfCompanyAssessed}\n`;
       reportText += `Tender No.: ${report.tenderNumber}\n`;
@@ -290,28 +302,26 @@ export function VendorProcessor({ initialData, onVendorSaved }: VendorProcessorP
       reportText += `Evaluation Validity Date: ${report.evaluationValidityDate}\n`;
       reportText += `Evaluator Name/Department: ${report.evaluatorNameDepartment}\n\n`;
 
-      reportText += `Summary of Vendor Financial Evaluations\n`;
+      reportText += `SUMMARY OF VENDOR FINANCIAL EVALUATIONS\n`;
       reportText += `---------------------------------------\n`;
-      reportText += `Category      | Quantitative | Altman-Z     | Qualitative\n`;
-      reportText += `--------------|--------------|--------------|-------------\n`;
-      reportText += `Score         | ${report.summaryOfEvaluations.quantitativeScore.padEnd(12)} | ${report.summaryOfEvaluations.altmanZScore.padEnd(12)} | ${report.summaryOfEvaluations.qualitativeScore}\n`;
-      reportText += `Band          | ${report.summaryOfEvaluations.quantitativeBand.padEnd(12)} | ${report.summaryOfEvaluations.altmanZBand.padEnd(12)} | ${report.summaryOfEvaluations.qualitativeBand}\n`;
-      reportText += `Risk Category | ${report.summaryOfEvaluations.quantitativeRiskCategory.padEnd(12)} | ${report.summaryOfEvaluations.altmanZRiskCategory.padEnd(12)} | ${report.summaryOfEvaluations.qualitativeRiskCategory}\n\n`;
+      reportText += `                     | Quantitative | Altman - Z   | Qualitative\n`;
+      reportText += `---------------------|--------------|--------------|-------------\n`;
+      reportText += `Score                | ${report.summaryOfEvaluations.quantitativeScore.padEnd(12)} | ${report.summaryOfEvaluations.altmanZScore.padEnd(12)} | ${report.summaryOfEvaluations.qualitativeScore}\n`;
+      reportText += `Band                 | ${report.summaryOfEvaluations.quantitativeBand.padEnd(12)} | ${report.summaryOfEvaluations.altmanZBand.padEnd(12)} | ${report.summaryOfEvaluations.qualitativeBand}\n`;
+      reportText += `Risk Category        | ${report.summaryOfEvaluations.quantitativeRiskCategory.padEnd(12)} | ${report.summaryOfEvaluations.altmanZRiskCategory.padEnd(12)} | ${report.summaryOfEvaluations.qualitativeRiskCategory}\n\n`;
       reportText += `Overall Financial Evaluation Result: ${report.summaryOfEvaluations.overallFinancialEvaluationResult}\n\n`;
 
-      reportText += `Financial Risk Level\n`;
-      reportText += `--------------------\n`;
       reportText += `Determined Risk Level: ${report.determinedRiskLevel}\n\n`;
-
+      
       reportText += `Detailed Analysis\n`;
       reportText += `-----------------\n`;
       reportText += `${report.detailedAnalysis}\n\n`;
       
-      reportText += `Financial Sub-Element Criteria (Legend)\n`;
-      reportText += `---------------------------------------\n`;
-      reportText += `Level  | Quantitative | Altman-Z     | Qualitative | Risk\n`;
+      reportText += `FINANCIAL SUB-ELEMENT CRITERIA\n`;
+      reportText += `------------------------------\n`;
+      reportText += `Criteria | Quantitative: | Altman-Z:     | Qualitative:\n`;
       financialCriteriaLegend.forEach(item => {
-        reportText += `${item.level.padEnd(6)} | ${item.quantitative.padEnd(12)} | ${item.altmanZ.padEnd(12)} | ${item.qualitative.padEnd(11)} | ${item.risk}\n`;
+        reportText += `${item.level.padEnd(8)} | ${item.quantitative.padEnd(13)} | ${item.altmanZ.padEnd(13)} | ${item.qualitative}\n`;
       });
 
       const blob = new Blob([reportText], { type: 'text/plain;charset=utf-8' });
@@ -425,105 +435,94 @@ export function VendorProcessor({ initialData, onVendorSaved }: VendorProcessorP
       {report && !isLoading && (
         <Card className="mt-8 w-full shadow-xl transition-all duration-500 ease-in-out opacity-100 transform scale-100 rounded-lg">
           <CardHeader className="pb-4">
-            <CardTitle className="text-2xl font-headline font-bold text-primary">
-              Financial Evaluation Report: <span className="font-bold">{report.nameOfCompanyAssessed}</span>
+            <CardTitle className="text-xl font-headline font-black text-primary text-center uppercase">
+              VENDOR FINANCIAL EVALUATION REPORT: {report.nameOfCompanyAssessed}
             </CardTitle>
-            <CardDescription className="text-md">Generated on: {new Date().toLocaleDateString()}</CardDescription>
+            <CardDescription className="text-sm text-center">Generated on: {new Date().toLocaleDateString()}</CardDescription>
           </CardHeader>
           <CardContent className="pt-2 space-y-6">
             <section>
-              <h3 className="text-xl font-bold text-accent mb-3 font-headline border-b pb-2">Vendor Data Bank</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3 text-sm">
-                <p><strong>Overall Result:</strong> {report.overallResult}</p>
-                <p><strong>Company Assessed:</strong> {report.nameOfCompanyAssessed}</p>
-                <p><strong>Tender No.:</strong> {report.tenderNumber}</p>
-                <p><strong>Tender Title:</strong> {report.tenderTitle}</p>
-                <p><strong>Date of Evaluation:</strong> {report.dateOfFinancialEvaluation}</p>
-                <p><strong>Evaluation Validity:</strong> {report.evaluationValidityDate}</p>
-                <p className="md:col-span-2"><strong>Evaluator:</strong> {report.evaluatorNameDepartment}</p>
+              <h3 className="text-lg font-headline font-bold text-primary mb-3 text-center uppercase">VENDOR DATA BANK FOR FINANCIAL EVALUATION</h3>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm border-collapse border border-slate-300">
+                  <tbody>
+                    <tr className="border-b border-slate-300"><td className="p-2 border-r border-slate-300 bg-sky-100 font-semibold w-1/3">Overall Result</td><td className="p-2">{report.overallResult}</td></tr>
+                    <tr className="border-b border-slate-300"><td className="p-2 border-r border-slate-300 bg-sky-100 font-semibold">Name of Company Assessed</td><td className="p-2">{report.nameOfCompanyAssessed}</td></tr>
+                    <tr className="border-b border-slate-300"><td className="p-2 border-r border-slate-300 bg-sky-100 font-semibold">Tender No.</td><td className="p-2">{report.tenderNumber}</td></tr>
+                    <tr className="border-b border-slate-300"><td className="p-2 border-r border-slate-300 bg-sky-100 font-semibold">Tender Title</td><td className="p-2">{report.tenderTitle}</td></tr>
+                    <tr className="border-b border-slate-300"><td className="p-2 border-r border-slate-300 bg-sky-100 font-semibold">Date of Financial Evaluation</td><td className="p-2">{report.dateOfFinancialEvaluation}</td></tr>
+                    <tr className="border-b border-slate-300"><td className="p-2 border-r border-slate-300 bg-sky-100 font-semibold">Evaluation Validity Date</td><td className="p-2">{report.evaluationValidityDate}</td></tr>
+                    <tr><td className="p-2 border-r border-slate-300 bg-sky-100 font-semibold">Evaluator Name/Department</td><td className="p-2">{report.evaluatorNameDepartment}</td></tr>
+                  </tbody>
+                </table>
               </div>
             </section>
 
             <Separator />
 
             <section>
-              <h3 className="text-xl font-bold text-accent mb-3 font-headline border-b pb-2">Summary of Vendor Financial Evaluations</h3>
+              <h3 className="text-lg font-headline font-bold text-primary mb-3 text-center uppercase">SUMMARY OF VENDOR FINANCIAL EVALUATIONS</h3>
               <div className="overflow-x-auto">
-                <table className="w-full text-sm border">
-                  <thead className="bg-muted">
+                <table className="w-full text-sm border-collapse border border-slate-400">
+                  <thead className="bg-slate-700 text-white">
                     <tr>
-                      <th className="p-3 border text-left">Metric</th>
-                      <th className="p-3 border text-left">Quantitative</th>
-                      <th className="p-3 border text-left">Altman-Z</th>
-                      <th className="p-3 border text-left">Qualitative</th>
+                      <th className="p-2 border-r border-slate-400"></th>
+                      <th className="p-2 border-r border-slate-400">Quantitative</th>
+                      <th className="p-2 border-r border-slate-400">Altman - Z</th>
+                      <th className="p-2">Qualitative</th>
                     </tr>
                   </thead>
                   <tbody>
-                    <tr>
-                      <td className="p-3 border font-medium">Score</td>
-                      <td className="p-3 border">{report.summaryOfEvaluations.quantitativeScore}</td>
-                      <td className="p-3 border">{report.summaryOfEvaluations.altmanZScore}</td>
-                      <td className="p-3 border">{report.summaryOfEvaluations.qualitativeScore}</td>
-                    </tr>
-                    <tr>
-                      <td className="p-3 border font-medium">Band</td>
-                      <td className="p-3 border">{report.summaryOfEvaluations.quantitativeBand}</td>
-                      <td className="p-3 border">{report.summaryOfEvaluations.altmanZBand}</td>
-                      <td className="p-3 border">{report.summaryOfEvaluations.qualitativeBand}</td>
-                    </tr>
-                    <tr>
-                      <td className="p-3 border font-medium">Risk Category</td>
-                      <td className="p-3 border">{report.summaryOfEvaluations.quantitativeRiskCategory}</td>
-                      <td className="p-3 border">{report.summaryOfEvaluations.altmanZRiskCategory}</td>
-                      <td className="p-3 border">{report.summaryOfEvaluations.qualitativeRiskCategory}</td>
-                    </tr>
+                    <tr className="border-b border-slate-400"><td className="p-2 border-r border-slate-400 bg-sky-100 font-semibold">Score</td><td className="p-2 border-r border-slate-400 text-center">{report.summaryOfEvaluations.quantitativeScore}</td><td className="p-2 border-r border-slate-400 text-center">{report.summaryOfEvaluations.altmanZScore}</td><td className="p-2 text-center">{report.summaryOfEvaluations.qualitativeScore}</td></tr>
+                    <tr className="border-b border-slate-400"><td className="p-2 border-r border-slate-400 bg-sky-100 font-semibold">Band</td><td className="p-2 border-r border-slate-400 text-center">{report.summaryOfEvaluations.quantitativeBand}</td><td className="p-2 border-r border-slate-400 text-center">{report.summaryOfEvaluations.altmanZBand}</td><td className="p-2 text-center">{report.summaryOfEvaluations.qualitativeBand}</td></tr>
+                    <tr><td className="p-2 border-r border-slate-400 bg-sky-100 font-semibold">Risk Category</td><td className="p-2 border-r border-slate-400 text-center">{report.summaryOfEvaluations.quantitativeRiskCategory}</td><td className="p-2 border-r border-slate-400 text-center">{report.summaryOfEvaluations.altmanZRiskCategory}</td><td className="p-2 text-center">{report.summaryOfEvaluations.qualitativeRiskCategory}</td></tr>
                   </tbody>
                 </table>
               </div>
-              <h4 className="text-md font-bold text-foreground mt-4 mb-1">Overall Financial Evaluation Result:</h4>
-              <p className="text-foreground text-sm leading-relaxed">{report.summaryOfEvaluations.overallFinancialEvaluationResult}</p>
+              <div className="mt-3 p-3 border border-slate-400 bg-slate-50 rounded-md">
+                <h4 className="text-md font-bold text-foreground mb-1">Overall Financial Evaluation Result:</h4>
+                <p className="text-foreground text-sm leading-relaxed">{report.summaryOfEvaluations.overallFinancialEvaluationResult}</p>
+              </div>
             </section>
             
             <Separator />
 
             <section>
-              <h3 className="text-xl font-bold text-accent mb-3 font-headline border-b pb-2">Financial Risk Level</h3>
-              <div className={`flex items-center p-3 rounded-md border ${report.determinedRiskLevel === "Green" ? "bg-green-50 border-green-200 text-green-700" : report.determinedRiskLevel === "Yellow" ? "bg-yellow-50 border-yellow-200 text-yellow-700" : "bg-red-50 border-red-200 text-red-700"}`}>
+               <h3 className="text-lg font-headline font-bold text-primary mb-2 text-center uppercase">Determined Financial Risk Level</h3>
+              <div className={`flex items-center justify-center p-3 rounded-md border text-md font-semibold ${report.determinedRiskLevel === "Green" ? "bg-green-100 border-green-300 text-green-700" : report.determinedRiskLevel === "Yellow" ? "bg-yellow-100 border-yellow-300 text-yellow-700" : "bg-red-100 border-red-300 text-red-700"}`}>
                 <RiskIcon level={report.determinedRiskLevel} />
-                <span className="font-semibold text-md">Determined Risk Level: {report.determinedRiskLevel}</span>
+                <span>{report.determinedRiskLevel}</span>
               </div>
             </section>
 
             <Separator />
 
             <section>
-              <h3 className="text-xl font-bold text-accent mb-3 font-headline border-b pb-2">Detailed Analysis</h3>
-              <p className="text-foreground whitespace-pre-wrap leading-relaxed text-sm bg-slate-50 p-4 rounded-md border">{report.detailedAnalysis}</p>
+              <h3 className="text-lg font-headline font-bold text-primary mb-3 text-left uppercase">Detailed Analysis</h3>
+              <p className="text-foreground whitespace-pre-wrap leading-relaxed text-sm bg-slate-50 p-4 rounded-md border border-slate-200">{report.detailedAnalysis}</p>
             </section>
 
             <Separator />
 
             <section>
-              <h3 className="text-xl font-bold text-accent mb-3 font-headline border-b pb-2">Financial Sub-Element Criteria (Legend)</h3>
+              <h3 className="text-lg font-headline font-bold text-primary mb-3 text-center uppercase">FINANCIAL SUB-ELEMENT CRITERIA</h3>
               <div className="overflow-x-auto">
-                <table className="w-full text-sm border">
-                  <thead className="bg-muted">
+                <table className="w-full text-sm border-collapse border border-slate-400">
+                  <thead className="bg-sky-100">
                     <tr>
-                      <th className="p-3 border text-center">Criteria</th>
-                      <th className="p-3 border text-center">Quantitative</th>
-                      <th className="p-3 border text-center">Altman-Z</th>
-                      <th className="p-3 border text-center">Qualitative</th>
-                      <th className="p-3 border text-center">Risk</th>
+                      <th className="p-2 border-r border-slate-400 font-semibold">Financial Criteria Sub-Element</th>
+                      <th className="p-2 border-r border-slate-400 font-semibold">Quantitative:</th>
+                      <th className="p-2 border-r border-slate-400 font-semibold">Altman-Z:</th>
+                      <th className="p-2 font-semibold">Qualitative:</th>
                     </tr>
                   </thead>
                   <tbody>
                     {financialCriteriaLegend.map((item) => (
                       <tr key={item.level} className={`${item.color} ${report.determinedRiskLevel === item.level ? 'ring-2 ring-offset-1 ring-primary' : ''}`}>
-                        <td className="p-3 border text-center font-medium">{item.level}</td>
-                        <td className="p-3 border text-center">{item.quantitative}</td>
-                        <td className="p-3 border text-center">{item.altmanZ}</td>
-                        <td className="p-3 border text-center">{item.qualitative}</td>
-                        <td className="p-3 border text-center">{item.risk}</td>
+                        <td className="p-2 border-r border-slate-400 text-center font-semibold">{item.level}</td>
+                        <td className="p-2 border-r border-slate-400 text-center">{item.quantitative}</td>
+                        <td className="p-2 border-r border-slate-400 text-center">{item.altmanZ}</td>
+                        <td className="p-2 text-center">{item.qualitative}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -546,4 +545,3 @@ export function VendorProcessor({ initialData, onVendorSaved }: VendorProcessorP
     </>
   );
 }
-
