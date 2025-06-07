@@ -1,3 +1,4 @@
+
 // src/ai/flows/generate-vendor-report.ts
 'use server';
 
@@ -84,17 +85,19 @@ Instructions for Report Generation:
     *   Populate \`tenderNumber\`, \`tenderTitle\`, \`dateOfFinancialEvaluation\`, \`evaluationValidityDate\`, \`evaluatorNameDepartment\` directly from the provided input if available. If an optional input field is not provided, output "N/A".
 
 2.  **SUMMARY OF VENDOR FINANCIAL EVALUATIONS Section**:
-    *   For Quantitative, Altman-Z, and Qualitative categories:
-        *   \`score\`: Generate a relevant score. For Quantitative and Altman-Z, this should be numerical (e.g., "3.5", "2.1"). For Qualitative, it can be a descriptive score (e.g., "Strong", "Satisfactory", "Weak") or a numerical representation if appropriate (e.g., "1.5").
-        *   \`band\`: Assign a band based on the score (e.g., "A", "B", "C" or "Excellent", "Good", "Fair").
-        *   \`riskCategory\`: Determine the risk category (e.g., "Low Risk", "Moderate Risk", "High Risk") for each individual component.
-    *   \`overallFinancialEvaluationResult\`: Provide a concluding statement summarizing the findings from the quantitative, Altman-Z, and qualitative assessments. This is a key summary text.
+    *   This section should be presented conceptually as a table with rows for "Score", "Band", and "Risk Category".
+    *   It will have columns for "Quantitative", "Altman - Z", "Qualitative", and "Overall Financial Evaluation Result".
+    *   For the "Quantitative", "Altman - Z", and "Qualitative" aspects, provide:
+        *   \`quantitativeScore\`, \`altmanZScore\`, \`qualitativeScore\`: Generate relevant scores. Quantitative and Altman-Z should be numerical (e.g., "3.5", "2.1"). Qualitative can be descriptive (e.g., "Strong", "Satisfactory") or numerical (e.g., "1.5").
+        *   \`quantitativeBand\`, \`altmanZBand\`, \`qualitativeBand\`: Assign bands based on scores (e.g., "A", "B", "C" or "Excellent", "Good", "Fair").
+        *   \`quantitativeRiskCategory\`, \`altmanZRiskCategory\`, \`qualitativeRiskCategory\`: Determine risk categories (e.g., "Low Risk", "Moderate Risk", "High Risk").
+    *   For the "Overall Financial Evaluation Result" aspect, the content will be stored in the \`overallFinancialEvaluationResult\` field. This field should contain a single, comprehensive concluding statement summarizing the findings from all assessments. It is not broken down by score/band/risk category itself but is a holistic summary that conceptually fits into a fourth column spanning the rows.
 
 3.  **FINANCIAL SUB-ELEMENT CRITERIA Guidance (for your internal use to determine \`determinedRiskLevel\` output)**:
-    *   Use the following as a general guide for your overall risk assessment. Your output for \`determinedRiskLevel\` should align with this framework:
-        *   Green (Low Overall Risk): Generally implies Quantitative score > 3, Altman-Z score is between 2 and 3, and Qualitative score is < 2 (if numeric, lower is better for qualitative).
-        *   Yellow (Moderate Overall Risk): Generally implies Quantitative score > 2.6, Altman-Z score is between 1.1 and 2.6, and Qualitative score is < 1.1.
-        *   Red (High Overall Risk): If the overall risk is determined as Red, this often means the Qualitative assessment indicates 'High Risk', the Altman-Z score might suggest 'Moderate Risk', and even if the Quantitative analysis appears 'Low Risk' in isolation, the combination of other factors leads to an overall 'Red' determination.
+    *   Use the following as a general guide for your overall risk assessment. Your output for \`determinedRiskLevel\` should align with this framework. The determination should be holistic.
+        *   **Green**: Consider if Quantitative is \`> 3\`, Altman-Z is \`2 – 3\`, AND Qualitative is \`< 2\`.
+        *   **Yellow**: Consider if Quantitative is \`>2.6\`, Altman-Z is \`1.1 – 2.6\`, AND Qualitative is \`<1.1\`.
+        *   **Red**: Consider if Quantitative is assessed as 'Low Risk', Altman-Z as 'Moderate Risk', AND Qualitative as 'High Risk'. A 'High Risk' qualitative assessment is a strong indicator for Red.
     *   \`determinedRiskLevel\`: Based on your comprehensive analysis of all factors, classify the vendor's overall financial risk into "Green", "Yellow", or "Red". This is a single output field reflecting your holistic judgment.
 
 4.  **Detailed Analysis (Separate Section)**:
