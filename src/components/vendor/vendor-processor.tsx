@@ -10,9 +10,17 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { generateVendorReport, type GenerateVendorReportOutput, type GenerateVendorReportInput } from '@/ai/flows/generate-vendor-report';
-import { Loader2, FileText, Printer, Download, AlertCircle, CheckCircle, MinusCircle, Save } from 'lucide-react';
+import { Loader2, FileText, Printer, Download, AlertCircle, CheckCircle, MinusCircle, Save, Sheet as SheetIcon, File as FileIcon, FileSignature as FileSignatureIcon, ChevronDown } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from "@/hooks/use-toast";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
+
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import * as XLSX from 'xlsx';
+import { Document, Packer, Paragraph, Table, TableCell, TableRow, TextRun, HeadingLevel, WidthType, BorderStyle } from 'docx';
+import { saveAs } from 'file-saver';
+
 
 export type VendorInputFields = Omit<GenerateVendorReportInput, 'vendorName'> & { vendorName: string };
 
@@ -39,7 +47,7 @@ export const VENDOR_BANK_STORAGE_KEY = 'vendorInformationBank';
 
 interface VendorProcessorProps {
   initialData?: VendorInputFields | null;
-  onVendorSaved?: (vendors: GenerateVendorReportInput[]) => void; // Callback when vendor is saved
+  onVendorSaved?: (vendors: GenerateVendorReportInput[]) => void;
 }
 
 export function VendorProcessor({ initialData, onVendorSaved }: VendorProcessorProps) {
@@ -52,7 +60,7 @@ export function VendorProcessor({ initialData, onVendorSaved }: VendorProcessorP
   useEffect(() => {
     if (initialData) {
       setFormInputs(initialData);
-      setReport(null); // Clear previous report when new initial data is loaded
+      setReport(null);
       setError(null);
     }
   }, [initialData]);
@@ -283,6 +291,13 @@ export function VendorProcessor({ initialData, onVendorSaved }: VendorProcessorP
         printWindow.document.write(printContent);
         printWindow.document.close();
         printWindow.focus();
+        // Add a small delay for content to render before printing
+        setTimeout(() => {
+            // Commenting out automatic print for now as it can be blocked by pop-up blockers or fail in some environments.
+            // User can manually print from the new window.
+            // printWindow.print();
+            // printWindow.close(); // Optional: close after printing
+        }, 500);
       } else {
         toast({
             title: "Print Error",
@@ -293,7 +308,7 @@ export function VendorProcessor({ initialData, onVendorSaved }: VendorProcessorP
     }
   };
 
-  const handleDownloadReport = () => {
+  const handleDownloadTxt = () => {
     if (report) {
       let reportText = `VENDOR DATA BANK FOR FINANCIAL EVALUATION\n`;
       reportText += `=========================================\n`;
@@ -354,6 +369,261 @@ export function VendorProcessor({ initialData, onVendorSaved }: VendorProcessorP
         description: `Report for ${report.nameOfCompanyAssessed} downloaded as a TXT file.`,
       });
     }
+  };
+
+  const handleDownloadPdf = () => {
+    if (!report) return;
+    const doc = new jsPDF();
+    const FONT_SIZE_NORMAL = 10;
+    const FONT_SIZE_HEADING = 14;
+    const FONT_SIZE_SUBHEADING = 12;
+    const LINE_HEIGHT = 7;
+    let yPos = 15; // Initial Y position
+
+    doc.setFontSize(FONT_SIZE_HEADING);
+    doc.text("VENDOR DATA BANK FOR FINANCIAL EVALUATION", doc.internal.pageSize.getWidth() / 2, yPos, { align: 'center' });
+    yPos += LINE_HEIGHT * 2;
+
+    const dataBankData = [
+      ["Overall Result", report.overallResult],
+      ["Name of Company Assessed", report.nameOfCompanyAssessed],
+      ["Tender No.", report.tenderNumber],
+      ["Tender Title", report.tenderTitle],
+      ["Date of Financial Evaluation", report.dateOfFinancialEvaluation],
+      ["Evaluation Validity Date", report.evaluationValidityDate],
+      ["Evaluator Name/Department", report.evaluatorNameDepartment],
+    ];
+    autoTable(doc, {
+      startY: yPos,
+      head: [['Field', 'Value']],
+      body: dataBankData,
+      theme: 'grid',
+      headStyles: { fillColor: [22, 160, 133] },
+      styles: { fontSize: FONT_SIZE_NORMAL, cellPadding: 2 },
+      columnStyles: { 0: { cellWidth: 60 } },
+    });
+    yPos = (doc as any).lastAutoTable.finalY + LINE_HEIGHT * 2;
+
+    doc.setFontSize(FONT_SIZE_HEADING);
+    doc.text("SUMMARY OF VENDOR FINANCIAL EVALUATIONS", doc.internal.pageSize.getWidth() / 2, yPos, { align: 'center' });
+    yPos += LINE_HEIGHT * 1.5;
+
+    const summaryBody = [
+        ["Score", report.summaryOfEvaluations.quantitativeScore, report.summaryOfEvaluations.altmanZScore, report.summaryOfEvaluations.qualitativeScore, report.summaryOfEvaluations.overallFinancialEvaluationResult],
+        ["Band", report.summaryOfEvaluations.quantitativeBand, report.summaryOfEvaluations.altmanZBand, report.summaryOfEvaluations.qualitativeBand, ""],
+        ["Risk Category", report.summaryOfEvaluations.quantitativeRiskCategory, report.summaryOfEvaluations.altmanZRiskCategory, report.summaryOfEvaluations.qualitativeRiskCategory, ""],
+    ];
+
+    autoTable(doc, {
+        startY: yPos,
+        head: [['', 'Quantitative', 'Altman - Z', 'Qualitative', 'Overall Financial Evaluation Result']],
+        body: summaryBody,
+        theme: 'grid',
+        headStyles: { fillColor: [44, 62, 80], textColor: [255,255,255], halign: 'center' },
+        styles: { fontSize: FONT_SIZE_NORMAL, cellPadding: 2, valign: 'middle' },
+        columnStyles: { 
+            0: {fontStyle: 'bold'},
+            4: {cellWidth: 'auto'} 
+        },
+        didDrawCell: (data) => {
+            if (data.section === 'body' && data.column.index === 4 && data.row.index === 0) {
+                // For merged cell for "Overall Financial Evaluation Result"
+                // автотейбл doesn't directly support rowspan in the way we need for complex layouts
+                // For simplicity, the data is already formatted. If visual rowspan is critical, more complex handling is needed.
+            }
+        }
+    });
+    yPos = (doc as any).lastAutoTable.finalY + LINE_HEIGHT;
+
+    doc.setFontSize(FONT_SIZE_SUBHEADING);
+    doc.text(`Determined Risk Level: ${report.determinedRiskLevel}`, 15, yPos);
+    yPos += LINE_HEIGHT * 2;
+
+    doc.setFontSize(FONT_SIZE_SUBHEADING);
+    doc.text("Detailed Analysis", 15, yPos);
+    yPos += LINE_HEIGHT;
+    doc.setFontSize(FONT_SIZE_NORMAL);
+    const splitDetailedAnalysis = doc.splitTextToSize(report.detailedAnalysis, doc.internal.pageSize.getWidth() - 30);
+    doc.text(splitDetailedAnalysis, 15, yPos);
+    yPos += splitDetailedAnalysis.length * (LINE_HEIGHT * 0.7) + LINE_HEIGHT;
+
+
+    doc.setFontSize(FONT_SIZE_HEADING);
+    if (yPos > doc.internal.pageSize.getHeight() - 40) { doc.addPage(); yPos = 15; } // Add new page if needed
+    doc.text("FINANCIAL SUB-ELEMENT CRITERIA", doc.internal.pageSize.getWidth() / 2, yPos, { align: 'center' });
+    yPos += LINE_HEIGHT * 1.5;
+
+    const criteriaData = financialCriteriaLegend.map(item => [item.level, item.quantitative, item.altmanZ, item.qualitative]);
+    autoTable(doc, {
+        startY: yPos,
+        head: [['Financial Criteria Sub-Element', 'Quantitative:', 'Altman-Z:', 'Qualitative:']],
+        body: criteriaData,
+        theme: 'grid',
+        headStyles: { fillColor: [22, 160, 133] },
+        styles: { fontSize: FONT_SIZE_NORMAL, cellPadding: 2 },
+        didDrawCell: (data) => {
+            if (data.section === 'body') {
+                const level = data.row.raw?.[0] as string;
+                 if (level === 'Green') data.cell.styles.fillColor = '#e6fffa';
+                 if (level === 'Yellow') data.cell.styles.fillColor = '#fff9c4';
+                 if (level === 'Red') data.cell.styles.fillColor = '#ffebee';
+            }
+        }
+    });
+
+    doc.save(`Vendor_Report_${report.nameOfCompanyAssessed.replace(/\s+/g, '_')}.pdf`);
+    toast({ title: "PDF Downloaded", description: `Report for ${report.nameOfCompanyAssessed} downloaded.` });
+  };
+  
+  const handleDownloadExcel = () => {
+    if (!report) return;
+    const wb = XLSX.utils.book_new();
+
+    // Sheet 1: Vendor Data Bank
+    const dataBankData = [
+      ["Overall Result", report.overallResult],
+      ["Name of Company Assessed", report.nameOfCompanyAssessed],
+      ["Tender No.", report.tenderNumber],
+      ["Tender Title", report.tenderTitle],
+      ["Date of Financial Evaluation", report.dateOfFinancialEvaluation],
+      ["Evaluation Validity Date", report.evaluationValidityDate],
+      ["Evaluator Name/Department", report.evaluatorNameDepartment],
+    ];
+    const ws1 = XLSX.utils.aoa_to_sheet([["Field", "Value"], ...dataBankData]);
+    XLSX.utils.book_append_sheet(wb, ws1, "Vendor Data Bank");
+
+    // Sheet 2: Summary of Financial Evaluations
+    const summaryHeader = ['', 'Quantitative', 'Altman - Z', 'Qualitative', 'Overall Financial Evaluation Result'];
+    const summaryBody = [
+        ["Score", report.summaryOfEvaluations.quantitativeScore, report.summaryOfEvaluations.altmanZScore, report.summaryOfEvaluations.qualitativeScore, report.summaryOfEvaluations.overallFinancialEvaluationResult],
+        ["Band", report.summaryOfEvaluations.quantitativeBand, report.summaryOfEvaluations.altmanZBand, report.summaryOfEvaluations.qualitativeBand, ""], // Excel doesn't handle rowspan well with simple aoa_to_sheet, so Overall Result is in first row only
+        ["Risk Category", report.summaryOfEvaluations.quantitativeRiskCategory, report.summaryOfEvaluations.altmanZRiskCategory, report.summaryOfEvaluations.qualitativeRiskCategory, ""],
+    ];
+    const ws2 = XLSX.utils.aoa_to_sheet([summaryHeader, ...summaryBody]);
+    // Attempt to merge cells for overall result; this is more advanced and might not render perfectly in all viewers from basic xlsx
+    // For simplicity, the overall result is just in the first row of its column.
+    XLSX.utils.book_append_sheet(wb, ws2, "Summary of Evaluations");
+
+    // Sheet 3: Determined Risk Level & Detailed Analysis
+    const ws3_data = [
+        ["Determined Risk Level", report.determinedRiskLevel],
+        [], // Empty row for spacing
+        ["Detailed Analysis"],
+        [report.detailedAnalysis] // Detailed analysis in one cell
+    ];
+    const ws3 = XLSX.utils.aoa_to_sheet(ws3_data);
+    ws3['!merges'] = [ { s: { r: 3, c: 0 }, e: { r: 3, c: 5 } } ]; // Example of merging for detailed analysis, adjust columns as needed
+    XLSX.utils.book_append_sheet(wb, ws3, "Analysis");
+    
+
+    // Sheet 4: Financial Sub-Element Criteria
+    const criteriaHeader = ['Financial Criteria Sub-Element', 'Quantitative:', 'Altman-Z:', 'Qualitative:'];
+    const criteriaData = financialCriteriaLegend.map(item => [item.level, item.quantitative, item.altmanZ, item.qualitative]);
+    const ws4 = XLSX.utils.aoa_to_sheet([criteriaHeader, ...criteriaData]);
+    XLSX.utils.book_append_sheet(wb, ws4, "Financial Criteria");
+
+    XLSX.writeFile(wb, `Vendor_Report_${report.nameOfCompanyAssessed.replace(/\s+/g, '_')}.xlsx`);
+    toast({ title: "Excel Downloaded", description: `Report for ${report.nameOfCompanyAssessed} downloaded.` });
+  };
+
+  const handleDownloadWord = async () => {
+    if (!report) return;
+
+    const formatCell = (text: string, isHeader = false) => new TableCell({
+        children: [new Paragraph({ children: [new TextRun({ text, bold: isHeader })] })],
+        borders: {
+            top: { style: BorderStyle.SINGLE, size: 1, color: "BFBFBF" },
+            bottom: { style: BorderStyle.SINGLE, size: 1, color: "BFBFBF" },
+            left: { style: BorderStyle.SINGLE, size: 1, color: "BFBFBF" },
+            right: { style: BorderStyle.SINGLE, size: 1, color: "BFBFBF" },
+        },
+    });
+
+    const dataBankRows = [
+      new TableRow({ children: [formatCell("Overall Result", true), formatCell(report.overallResult)] }),
+      new TableRow({ children: [formatCell("Name of Company Assessed", true), formatCell(report.nameOfCompanyAssessed)] }),
+      new TableRow({ children: [formatCell("Tender No.", true), formatCell(report.tenderNumber)] }),
+      new TableRow({ children: [formatCell("Tender Title", true), formatCell(report.tenderTitle)] }),
+      new TableRow({ children: [formatCell("Date of Financial Evaluation", true), formatCell(report.dateOfFinancialEvaluation)] }),
+      new TableRow({ children: [formatCell("Evaluation Validity Date", true), formatCell(report.evaluationValidityDate)] }),
+      new TableRow({ children: [formatCell("Evaluator Name/Department", true), formatCell(report.evaluatorNameDepartment)] }),
+    ];
+    const dataBankTable = new Table({ rows: dataBankRows, width: { size: 100, type: WidthType.PERCENTAGE } });
+
+    const summaryHeaderRow = new TableRow({
+        children: [
+            formatCell("", true), formatCell("Quantitative", true), formatCell("Altman - Z", true),
+            formatCell("Qualitative", true), formatCell("Overall Financial Evaluation Result", true)
+        ]
+    });
+    const summaryScoreRow = new TableRow({
+        children: [
+            formatCell("Score", true), formatCell(report.summaryOfEvaluations.quantitativeScore), formatCell(report.summaryOfEvaluations.altmanZScore),
+            formatCell(report.summaryOfEvaluations.qualitativeScore), 
+            new TableCell({ // For rowspan
+                children: [new Paragraph(report.summaryOfEvaluations.overallFinancialEvaluationResult)],
+                rowSpan: 3,
+                borders: {
+                    top: { style: BorderStyle.SINGLE, size: 1, color: "BFBFBF" },
+                    bottom: { style: BorderStyle.SINGLE, size: 1, color: "BFBFBF" },
+                    left: { style: BorderStyle.SINGLE, size: 1, color: "BFBFBF" },
+                    right: { style: BorderStyle.SINGLE, size: 1, color: "BFBFBF" },
+                },
+            })
+        ]
+    });
+    const summaryBandRow = new TableRow({
+        children: [
+            formatCell("Band", true), formatCell(report.summaryOfEvaluations.quantitativeBand), formatCell(report.summaryOfEvaluations.altmanZBand),
+            formatCell(report.summaryOfEvaluations.qualitativeBand)
+        ]
+    });
+    const summaryRiskRow = new TableRow({
+        children: [
+            formatCell("Risk Category", true), formatCell(report.summaryOfEvaluations.quantitativeRiskCategory), formatCell(report.summaryOfEvaluations.altmanZRiskCategory),
+            formatCell(report.summaryOfEvaluations.qualitativeRiskCategory)
+        ]
+    });
+    const summaryTable = new Table({ rows: [summaryHeaderRow, summaryScoreRow, summaryBandRow, summaryRiskRow], width: { size: 100, type: WidthType.PERCENTAGE } });
+
+    const criteriaHeaderRow = new TableRow({
+        children: [
+            formatCell("Financial Criteria Sub-Element", true), formatCell("Quantitative:", true),
+            formatCell("Altman-Z:", true), formatCell("Qualitative:", true)
+        ]
+    });
+    const criteriaRows = financialCriteriaLegend.map(item => new TableRow({
+        children: [
+            formatCell(item.level, true), formatCell(item.quantitative),
+            formatCell(item.altmanZ), formatCell(item.qualitative)
+        ]
+    }));
+    const criteriaTable = new Table({ rows: [criteriaHeaderRow, ...criteriaRows], width: { size: 100, type: WidthType.PERCENTAGE } });
+
+    const doc = new Document({
+      sections: [{
+        children: [
+          new Paragraph({ text: "VENDOR DATA BANK FOR FINANCIAL EVALUATION", heading: HeadingLevel.HEADING_1, alignment: 'center' }),
+          dataBankTable,
+          new Paragraph({text: ""}), // spacing
+          new Paragraph({ text: "SUMMARY OF VENDOR FINANCIAL EVALUATIONS", heading: HeadingLevel.HEADING_1, alignment: 'center' }),
+          summaryTable,
+          new Paragraph({text: ""}), // spacing
+          new Paragraph({ children: [new TextRun({ text: "Determined Risk Level: ", bold: true }), new TextRun(report.determinedRiskLevel)] , heading: HeadingLevel.HEADING_2}),
+          new Paragraph({text: ""}), // spacing
+          new Paragraph({ text: "Detailed Analysis", heading: HeadingLevel.HEADING_2 }),
+          ...report.detailedAnalysis.split('\n').map(line => new Paragraph(line)),
+          new Paragraph({text: ""}), // spacing
+          new Paragraph({ text: "FINANCIAL SUB-ELEMENT CRITERIA", heading: HeadingLevel.HEADING_1, alignment: 'center' }),
+          criteriaTable,
+        ],
+      }],
+    });
+
+    Packer.toBlob(doc).then(blob => {
+      saveAs(blob, `Vendor_Report_${report.nameOfCompanyAssessed.replace(/\s+/g, '_')}.docx`);
+      toast({ title: "Word Downloaded", description: `Report for ${report.nameOfCompanyAssessed} downloaded.` });
+    });
   };
   
   const RiskIcon = ({ level }: { level: string }) => {
@@ -561,18 +831,41 @@ export function VendorProcessor({ initialData, onVendorSaved }: VendorProcessorP
             </section>
           </CardContent>
           <CardFooter className="flex justify-end space-x-3 pt-6 border-t mt-6">
-            <Button onClick={handleDownloadReport} variant="outline" className="border-accent text-accent hover:bg-accent hover:text-accent-foreground">
-              <Download className="mr-2 h-5 w-5" />
-              Download
-            </Button>
-            <Button onClick={handlePrintReport} variant="outline" className="border-accent text-accent hover:bg-accent hover:text-accent-foreground">
-              <Printer className="mr-2 h-5 w-5" />
-              Print
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="border-accent text-accent hover:bg-accent hover:text-accent-foreground">
+                  <Download className="mr-2 h-5 w-5" />
+                  Export Report
+                  <ChevronDown className="ml-2 h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={handlePrintReport}>
+                  <Printer className="mr-2 h-4 w-4" />
+                  Print
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleDownloadTxt}>
+                  <FileText className="mr-2 h-4 w-4" />
+                  Download TXT
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleDownloadPdf}>
+                  <FileIcon className="mr-2 h-4 w-4" />
+                  Download PDF
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleDownloadExcel}>
+                  <SheetIcon className="mr-2 h-4 w-4" />
+                  Download Excel (.xlsx)
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleDownloadWord}>
+                  <FileSignatureIcon className="mr-2 h-4 w-4" />
+                  Download Word (.docx)
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </CardFooter>
         </Card>
       )}
     </>
   );
 }
-
