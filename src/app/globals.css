@@ -8,25 +8,25 @@ body {
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 0 0% 3.9%;
-    --card: 0 0% 100%;
-    --card-foreground: 0 0% 3.9%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 3.9%;
-    --primary: 0 0% 9%;
-    --primary-foreground: 0 0% 98%;
-    --secondary: 0 0% 96.1%;
-    --secondary-foreground: 0 0% 9%;
-    --muted: 0 0% 96.1%;
-    --muted-foreground: 0 0% 45.1%;
-    --accent: 0 0% 96.1%;
-    --accent-foreground: 0 0% 9%;
+    --background: 231 25% 94.1%; /* Light blue-gray #E8EAF6 */
+    --foreground: 0 0% 3.9%; /* Dark text for contrast */
+    --card: 0 0% 100%; /* White cards */
+    --card-foreground: 0 0% 3.9%; /* Dark text on cards */
+    --popover: 0 0% 100%; /* White popovers */
+    --popover-foreground: 0 0% 3.9%; /* Dark text on popovers */
+    --primary: 231 48% 48%; /* Deep blue #3F51B5 */
+    --primary-foreground: 0 0% 98%; /* Light text on primary */
+    --secondary: 230 20% 96.1%; /* Slightly off-white, lighter/cooler */
+    --secondary-foreground: 0 0% 9%; /* Dark gray for text on secondary */
+    --muted: 230 20% 92%; /* Muted background */
+    --muted-foreground: 230 15% 40%; /* Medium gray for muted text */
+    --accent: 174 100% 29.4%; /* Teal #009688 */
+    --accent-foreground: 0 0% 98%; /* Light text on accent */
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 89.8%;
-    --input: 0 0% 89.8%;
-    --ring: 0 0% 3.9%;
+    --border: 230 15% 85%; /* Visible border color */
+    --input: 230 15% 88%; /* Input field background/border */
+    --ring: 174 100% 29.4%; /* Accent color for focus rings */
     --chart-1: 12 76% 61%;
     --chart-2: 173 58% 39%;
     --chart-3: 197 37% 24%;
