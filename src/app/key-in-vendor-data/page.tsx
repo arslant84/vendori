@@ -11,10 +11,10 @@ export default function KeyInVendorDataPage() {
       <header className="mb-10 text-center">
         <h1 className="text-5xl font-headline font-black text-primary flex items-center justify-center">
           <FilePlus className="mr-4 h-12 w-12" />
-          Enter New Vendor Information
+          Enter New Vendor Evaluation
         </h1>
         <p className="text-muted-foreground mt-2 text-lg">
-          Provide the details below to generate a financial evaluation report for a new vendor.
+          Provide the details below to save a financial evaluation for a new vendor.
         </p>
       </header>
 

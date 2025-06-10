@@ -9,8 +9,8 @@ import { cn } from '@/lib/utils';
 
 const navItems = [
   { href: '/', label: 'Home', icon: Home },
-  { href: '/key-in-vendor-data', label: 'Enter Vendor Data', icon: FilePlus },
-  { href: '/search-vendor-report', label: 'Search Reports', icon: Search },
+  { href: '/key-in-vendor-data', label: 'Enter Vendor Evaluation', icon: FilePlus },
+  { href: '/search-vendor-report', label: 'Search Evaluations', icon: Search },
 ];
 
 export function AppNavigation() {

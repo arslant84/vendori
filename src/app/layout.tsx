@@ -5,7 +5,7 @@ import { AppNavigation } from '@/components/layout/app-navigation';
 
 export const metadata: Metadata = {
   title: 'Vendor Insights',
-  description: 'AI-Powered Vendor Analysis and Report Generation',
+  description: 'Vendor Evaluation Data Management',
 };
 
 export default function RootLayout({

@@ -3,7 +3,6 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import type { GenerateVendorReportInput } from '@/ai/flows/generate-vendor-report';
 import { VendorProcessor, VENDOR_BANK_STORAGE_KEY, type VendorInputFields, initialInputState } from '@/components/vendor/vendor-processor';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -12,7 +11,7 @@ import { Search, Users, Trash2, Edit } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 
 export default function SearchVendorReportPage() {
-  const [savedVendors, setSavedVendors] = useState<GenerateVendorReportInput[]>([]);
+  const [savedVendors, setSavedVendors] = useState<VendorInputFields[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedVendor, setSelectedVendor] = useState<VendorInputFields | null>(null);
   const { toast } = useToast();
@@ -21,7 +20,7 @@ export default function SearchVendorReportPage() {
     const storedVendors = localStorage.getItem(VENDOR_BANK_STORAGE_KEY);
     if (storedVendors) {
       try {
-        const parsedVendors = JSON.parse(storedVendors);
+        const parsedVendors: VendorInputFields[] = JSON.parse(storedVendors);
         if (Array.isArray(parsedVendors)) {
           setSavedVendors(parsedVendors);
         }
@@ -32,23 +31,24 @@ export default function SearchVendorReportPage() {
   }, []);
 
 
-  const handleVendorListUpdate = (updatedVendors: GenerateVendorReportInput[]) => {
+  const handleVendorListUpdate = (updatedVendors: VendorInputFields[]) => {
     setSavedVendors(updatedVendors);
     if (selectedVendor && updatedVendors.some(v => v.vendorName === selectedVendor.vendorName)) {
         const refreshedVendor = updatedVendors.find(v => v.vendorName === selectedVendor.vendorName);
         if (refreshedVendor) {
-            setSelectedVendor(refreshedVendor as VendorInputFields);
+            setSelectedVendor(refreshedVendor);
         }
     } else if (selectedVendor && !updatedVendors.some(v => v.vendorName === selectedVendor.vendorName)) {
+        // If the currently selected vendor was removed or its name changed (which acts like removal here)
         setSelectedVendor(null);
     }
   };
 
-  const handleLoadVendor = (vendor: GenerateVendorReportInput) => {
+  const handleLoadVendor = (vendor: VendorInputFields) => {
     setSelectedVendor({ ...initialInputState, ...vendor }); 
     toast({
-      title: "Vendor Loaded",
-      description: `Information for ${vendor.vendorName} loaded for processing.`,
+      title: "Vendor Data Loaded",
+      description: `Information for ${vendor.vendorName} loaded for viewing/editing.`,
     });
   };
 
@@ -58,11 +58,11 @@ export default function SearchVendorReportPage() {
     localStorage.setItem(VENDOR_BANK_STORAGE_KEY, JSON.stringify(updatedVendors));
     toast({
       title: "Vendor Removed",
-      description: `${vendorNameToRemove} has been removed from the bank.`,
+      description: `${vendorNameToRemove} has been removed from the data bank.`,
       variant: "destructive"
     });
     if (selectedVendor && selectedVendor.vendorName === vendorNameToRemove) {
-      setSelectedVendor(null);
+      setSelectedVendor(null); // Clear selection if the removed vendor was selected
     }
   };
 
@@ -80,10 +80,10 @@ export default function SearchVendorReportPage() {
       <header className="mb-10 text-center">
         <h1 className="text-5xl font-headline font-black text-primary flex items-center justify-center">
           <Search className="mr-4 h-12 w-12" />
-          Search Vendor Reports
+          Search Vendor Evaluations
         </h1>
         <p className="text-muted-foreground mt-2 text-lg">
-          Find existing vendors, load their data, and generate or update financial reports.
+          Find existing vendors and load their evaluation data for review or updates.
         </p>
       </header>
 
@@ -92,9 +92,9 @@ export default function SearchVendorReportPage() {
           <CardHeader>
             <CardTitle className="text-2xl font-headline font-bold flex items-center text-primary">
               <Users className="mr-3 h-7 w-7" />
-              Vendor Information Bank
+              Vendor Data Bank
             </CardTitle>
-            <CardDescription className="text-md">Search, load, or remove saved vendor information.</CardDescription>
+            <CardDescription className="text-md">Search, load, or remove saved vendor evaluation data.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex items-center space-x-2">
@@ -124,7 +124,7 @@ export default function SearchVendorReportPage() {
               </ul>
             ) : (
               <p className="text-muted-foreground text-center py-4">
-                {savedVendors.length === 0 ? "No vendors saved yet. Add some via the 'Enter Vendor Data' page." : "No vendors match your search."}
+                {savedVendors.length === 0 ? "No vendors saved yet. Add some via the 'Enter Vendor Evaluation' page." : "No vendors match your search."}
               </p>
             )}
           </CardContent>
@@ -132,8 +132,13 @@ export default function SearchVendorReportPage() {
 
         {selectedVendor && (
           <div className="mt-8 w-full">
-             <h2 className="text-3xl font-headline font-black text-primary mb-6 text-center">Process Selected Vendor</h2>
+             <h2 className="text-3xl font-headline font-black text-primary mb-6 text-center">View/Edit Vendor Evaluation</h2>
             <VendorProcessor initialData={selectedVendor} onVendorSaved={handleVendorListUpdate} />
+          </div>
+        )}
+        {!selectedVendor && (
+          <div className="mt-8 w-full text-center text-muted-foreground">
+            <p>Select a vendor from the list above to view or edit their details.</p>
           </div>
         )}
       </div>

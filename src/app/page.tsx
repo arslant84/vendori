@@ -1,3 +1,4 @@
+
 // src/app/page.tsx
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -12,7 +13,7 @@ export default function LandingPage() {
           Vendor Insights
         </h1>
         <p className="text-2xl text-muted-foreground max-w-2xl mx-auto">
-          AI-Powered Financial Evaluation & Vendor Information Management. Streamline your vendor assessment process with intelligent reporting and a centralized information bank.
+          Streamlined Vendor Evaluation & Information Management. Easily enter, store, and retrieve vendor assessment details.
         </p>
       </header>
 
@@ -21,10 +22,10 @@ export default function LandingPage() {
           <CardHeader>
             <CardTitle className="text-3xl font-headline font-bold flex items-center text-accent">
               <FilePlus className="mr-3 h-8 w-8" />
-              Enter New Vendor Data
+              Enter New Vendor Evaluation
             </CardTitle>
             <CardDescription className="text-lg">
-              Input details for a new vendor and generate a comprehensive financial evaluation report using our AI-powered analyst.
+              Input and save comprehensive financial evaluation details for new or existing vendors.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -41,10 +42,10 @@ export default function LandingPage() {
           <CardHeader>
             <CardTitle className="text-3xl font-headline font-bold flex items-center text-accent">
               <Search className="mr-3 h-8 w-8" />
-              Search & Retrieve Reports
+              Search & Retrieve Evaluations
             </CardTitle>
             <CardDescription className="text-lg">
-              Access your Vendor Information Bank. Search for existing vendors, load their data, and generate or update their financial reports.
+              Access your Vendor Data Bank. Search for existing vendors and load their saved evaluation data for review or updates.
             </CardDescription>
           </CardHeader>
           <CardContent>
