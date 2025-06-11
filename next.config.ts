@@ -1,3 +1,4 @@
+
 import type {NextConfig} from 'next';
 
 const nextConfig: NextConfig = {
@@ -21,11 +22,13 @@ const nextConfig: NextConfig = {
   webpack: (config, { isServer }) => {
     // Fixes npm packages that depend on `fs` module
     if (!isServer) {
-      config.resolve.fallback = {
-        ...config.resolve.fallback, // Spread existing fallbacks
-        fs: false, // Tells webpack to ignore fs module on client-side
-        path: false, // Tells webpack to ignore path module on client-side
-      };
+      // Ensure config.resolve and config.resolve.fallback exist
+      config.resolve = config.resolve || {};
+      config.resolve.fallback = config.resolve.fallback || {};
+      
+      // Set fallbacks for fs and path
+      config.resolve.fallback.fs = false;
+      config.resolve.fallback.path = false;
     }
 
     return config;
