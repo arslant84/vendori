@@ -162,10 +162,10 @@ export function VendorProcessor({ initialData, onVendorSaved }: VendorProcessorP
     try {
       if (format === 'txt') {
           const fileSaverModule = await import('file-saver');
-          const saveAs = fileSaverModule.default || fileSaverModule.saveAs; // Try default first, then named
+          const saveAs = fileSaverModule.default || fileSaverModule.saveAs; 
           if (typeof saveAs !== 'function') {
-            console.error('Failed to load saveAs function from file-saver for TXT export.', fileSaverModule);
-            toast({ title: "Export Error", description: "File saving utility for TXT export failed to load.", variant: "destructive" });
+            console.error('Failed to load saveAs function from file-saver for TXT export.');
+            toast({ title: "Export Error", description: "File saving utility for TXT export failed to load. Try refreshing.", variant: "destructive" });
             setIsExporting(false);
             return;
           }
@@ -193,9 +193,21 @@ export function VendorProcessor({ initialData, onVendorSaved }: VendorProcessorP
 
           const doc = new jsPDF();
           doc.setFontSize(18);
-          doc.text(vendorName + " - Financial Evaluation Report", 14, 22);
+          doc.text(formInputs.vendorName + " - Financial Evaluation Report", 14, 22);
           doc.setFontSize(11);
           doc.setTextColor(100);
+
+          const safeUpdateYPos = (currentY: number, autoTableResult: any, fallbackIncrement = 30): number => {
+            let newY = currentY;
+            if (autoTableResult && typeof autoTableResult.finalY === 'number' && !isNaN(autoTableResult.finalY)) {
+                newY = autoTableResult.finalY;
+            } else {
+                console.warn('jsPDF autoTable.finalY was not a valid number. currentY will be advanced by fallbackIncrement.');
+                toast({ title: "PDF Export Warning", description: "Report layout might be partially incorrect due to table height calculation.", variant: "default"});
+                newY += fallbackIncrement; 
+            }
+            return newY + 10; // Add standard margin
+          };
 
           let yPos = 35;
           doc.setFontSize(14);
@@ -208,9 +220,9 @@ export function VendorProcessor({ initialData, onVendorSaved }: VendorProcessorP
               body: dataBankFields.map(f => [f.label, f.value || 'N/A']),
               theme: 'striped',
               styles: { fontSize: 9, cellPadding: 2, halign: 'left' },
-              headStyles: { fillColor: [38, 50, 56], textColor: 255, fontStyle: 'bold', halign: 'left' }, 
+              headStyles: { fillColor: [38, 50, 56], textColor: 255, fontStyle: 'bold', halign: 'left', cellPadding: 2 }, 
           });
-          yPos = (doc as any).lastAutoTable.finalY + 10;
+          yPos = safeUpdateYPos(yPos, (doc as any).lastAutoTable);
 
           doc.setFontSize(14);
           doc.text(summaryHeader, 14, yPos);
@@ -219,8 +231,8 @@ export function VendorProcessor({ initialData, onVendorSaved }: VendorProcessorP
 
           const pdfSummaryBody = [
             ['Score', formInputs.quantitativeScore || 'N/A', formInputs.altmanZScore || 'N/A', formInputs.qualitativeScore || 'N/A', { content: formInputs.overallFinancialEvaluationResult || 'N/A', rowSpan: 3, styles: { valign: 'top', halign: 'left'} }],
-            ['Band', formInputs.quantitativeBand || 'N/A', formInputs.altmanZBand || 'N/A', formInputs.qualitativeBand || 'N/A', ''], // Placeholder for spanned cell
-            ['Risk Category', formInputs.quantitativeRiskCategory || 'N/A', formInputs.altmanZRiskCategory || 'N/A', formInputs.qualitativeRiskCategory || 'N/A', ''], // Placeholder for spanned cell
+            ['Band', formInputs.quantitativeBand || 'N/A', formInputs.altmanZBand || 'N/A', formInputs.qualitativeBand || 'N/A', ''], 
+            ['Risk Category', formInputs.quantitativeRiskCategory || 'N/A', formInputs.altmanZRiskCategory || 'N/A', formInputs.qualitativeRiskCategory || 'N/A', ''], 
           ];
 
           autoTable(doc, {
@@ -228,7 +240,7 @@ export function VendorProcessor({ initialData, onVendorSaved }: VendorProcessorP
               head: [['', 'Quantitative', 'Altman - Z', 'Qualitative', 'Overall Financial Evaluation Result']],
               body: pdfSummaryBody,
               theme: 'grid',
-              styles: { fontSize: 9, cellPadding: 1.5, halign: 'left' }, // Adjusted cellPadding
+              styles: { fontSize: 9, cellPadding: 1.5, halign: 'left' }, 
               headStyles: { fillColor: [38, 50, 56], textColor: 255, fontStyle: 'bold', halign: 'center', cellPadding: 2 },
               columnStyles: {
                   0: {halign: 'left', fontStyle: 'bold'},
@@ -238,17 +250,33 @@ export function VendorProcessor({ initialData, onVendorSaved }: VendorProcessorP
                   4: { cellWidth: 'wrap', halign: 'left' } 
               },
           });
-          yPos = (doc as any).lastAutoTable.finalY + 10;
+          yPos = safeUpdateYPos(yPos, (doc as any).lastAutoTable);
 
           doc.setFontSize(14);
           doc.text(detailedAnalysisHeader, 14, yPos);
-          yPos += 8;
+          yPos += 8; // Space for header
           doc.setFontSize(10);
-          const splitDetailedAnalysis = doc.splitTextToSize(formInputs.keyInformation || 'N/A', doc.internal.pageSize.getWidth() - 28); 
-          doc.text(splitDetailedAnalysis, 14, yPos);
-          yPos += splitDetailedAnalysis.length * (doc.getLineHeight() / doc.getFont().scaleFactor * 0.7) + 10; 
+          const detailedAnalysisTextContent = formInputs.keyInformation || 'N/A';
+          const textLines = doc.splitTextToSize(detailedAnalysisTextContent, doc.internal.pageSize.getWidth() - 28);
+          doc.text(textLines, 14, yPos);
+          
+          const numLines = Array.isArray(textLines) ? textLines.length : 1;
+          const singleLineHeight = doc.getTextDimensions("M").h; // Get height of a single line 'M' for current font/size
+
+          if (typeof yPos === 'number' && !isNaN(yPos) && typeof singleLineHeight === 'number' && !isNaN(singleLineHeight)) {
+            yPos += (numLines * singleLineHeight) + 10; // Add height of text block + margin
+          } else {
+            console.warn("PDF Export: Problem calculating detailed analysis text height. Using fallback.", { yPos, singleLineHeight });
+            const previousY = (typeof yPos === 'number' && !isNaN(yPos)) ? yPos : (((doc as any).lastAutoTable?.finalY) || 200);
+            yPos = previousY + (detailedAnalysisTextContent.length > 200 ? 70 : 30); // Rough estimate plus margin
+          }
 
           doc.setFontSize(14);
+          if (typeof yPos !== 'number' || isNaN(yPos)) {
+            console.error("PDF Export Critical: yPos is NaN before criteriaHeader. Report will be malformed.", { yPos });
+            yPos = Math.max(...[((doc as any).lastAutoTable?.finalY) || 0, 250]) + 20; 
+            toast({title:"PDF Error", description:"Layout error occurred. Report may be incomplete.", variant:"destructive"});
+          }
           doc.text(criteriaHeader, 14, yPos);
           yPos += 8;
           doc.setFontSize(10);
@@ -279,7 +307,7 @@ export function VendorProcessor({ initialData, onVendorSaved }: VendorProcessorP
 
           const excelSummaryData = [
               [summaryHeader],
-              summaryTableData[0], // Header row
+              summaryTableData[0], 
               [summaryTableData[1][0], summaryTableData[1][1] || 'N/A', summaryTableData[1][2] || 'N/A', summaryTableData[1][3] || 'N/A', formInputs.overallFinancialEvaluationResult || 'N/A'],
               [summaryTableData[2][0], summaryTableData[2][1] || 'N/A', summaryTableData[2][2] || 'N/A', summaryTableData[2][3] || 'N/A', null],
               [summaryTableData[3][0], summaryTableData[3][1] || 'N/A', summaryTableData[3][2] || 'N/A', summaryTableData[3][3] || 'N/A', null],
@@ -310,17 +338,17 @@ export function VendorProcessor({ initialData, onVendorSaved }: VendorProcessorP
       } else if (format === 'word') {
           const { Document, Packer, Paragraph, Table: DocxTable, TableCell, TableRow, TextRun, HeadingLevel, WidthType, BorderStyle, VerticalAlign } = await import('docx');
           const fileSaverModule = await import('file-saver');
-          const saveAs = fileSaverModule.default || fileSaverModule.saveAs; // Try default first, then named
+          const saveAs = fileSaverModule.default || fileSaverModule.saveAs; 
 
           if (typeof saveAs !== 'function') {
-            console.error('Failed to load saveAs function from file-saver for Word export.', fileSaverModule);
-            toast({ title: "Export Error", description: "File saving utility for Word export failed to load.", variant: "destructive" });
+            console.error('Failed to load saveAs function from file-saver for Word export.');
+            toast({ title: "Export Error", description: "File saving utility for Word export failed to load. Try refreshing.", variant: "destructive" });
             setIsExporting(false);
             return;
           }
 
           const sections = [];
-          sections.push(new Paragraph({ text: vendorName + " - Financial Evaluation Report", heading: HeadingLevel.TITLE }));
+          sections.push(new Paragraph({ text: formInputs.vendorName + " - Financial Evaluation Report", heading: HeadingLevel.TITLE }));
           
           sections.push(new Paragraph({ text: dataBankHeader, heading: HeadingLevel.HEADING_1, spacing: { before: 200, after: 100 } }));
           const dataBankTableRows = dataBankFields.map(f => new TableRow({
@@ -374,8 +402,8 @@ export function VendorProcessor({ initialData, onVendorSaved }: VendorProcessorP
           }));
           sections.push(new DocxTable({ rows: criteriaTableRows, width: { size: 100, type: WidthType.PERCENTAGE } }));
 
-          const doc = new Document({ sections: [{ children: sections }] });
-          Packer.toBlob(doc).then(blob => {
+          const docFile = new Document({ sections: [{ children: sections }] });
+          Packer.toBlob(docFile).then(blob => {
               saveAs(blob, `${vendorName}_Evaluation_Report.docx`);
           });
       }
@@ -413,7 +441,7 @@ export function VendorProcessor({ initialData, onVendorSaved }: VendorProcessorP
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="vendorName" className="text-foreground">Vendor Name <span className="text-destructive">*</span></Label>
-                <Input id="vendorName" name="vendorName" type="text" placeholder="e.g., Acme Corp" value={formInputs.vendorName} onChange={handleInputChange} required className="mt-1" disabled={!!initialData?.vendorName} />
+                <Input id="vendorName" name="vendorName" type="text" placeholder="e.g., Acme Corp" value={formInputs.vendorName} onChange={handleInputChange} required className="mt-1" disabled={!!initialData?.vendorName && !!formInputs.vendorName} />
               </div>
               <div>
                 <Label htmlFor="overallResult" className="text-foreground">Overall Result (Data Bank)</Label>
