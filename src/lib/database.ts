@@ -3,13 +3,34 @@
 
 import initSqlJs, { type Database, type SqlValue } from 'sql.js';
 import type { VendorInputFields } from '@/components/vendor/vendor-processor';
-import { initialInputState } from '@/components/vendor/vendor-processor';
-
+// Removed import of initialInputState to break circular dependency
 
 let dbPromise: Promise<Database> | null = null;
 const DB_STORAGE_KEY = 'vendorSqliteDatabase'; // New key for SQLite data
 
-const VENDOR_COLUMNS = Object.keys(initialInputState) as Array<keyof VendorInputFields>;
+// Statically define VENDOR_COLUMNS based on the VendorInputFields interface
+const VENDOR_COLUMNS: Array<keyof VendorInputFields> = [
+  'vendorName',
+  'vendorIndustry',
+  'companySize',
+  'tenderNumber',
+  'tenderTitle',
+  'dateOfFinancialEvaluation',
+  'evaluationValidityDate',
+  'evaluatorNameDepartment',
+  'overallResult',
+  'quantitativeScore',
+  'quantitativeBand',
+  'quantitativeRiskCategory',
+  'altmanZScore',
+  'altmanZBand',
+  'altmanZRiskCategory',
+  'qualitativeScore',
+  'qualitativeBand',
+  'qualitativeRiskCategory',
+  'overallFinancialEvaluationResult',
+  'keyInformation',
+];
 
 const initialize = async (): Promise<Database> => {
   try {
@@ -81,7 +102,8 @@ export const saveVendorDb = async (vendorData: VendorInputFields): Promise<void>
   const placeholders = VENDOR_COLUMNS.map(col => `$${col}`).join(', ');
   const params: { [key: string]: SqlValue } = {};
   VENDOR_COLUMNS.forEach(col => {
-    params[`$${col}`] = vendorData[col] !== undefined ? String(vendorData[col]) : null;
+    // Ensure all keys from VENDOR_COLUMNS are present in params, defaulting to null if not in vendorData
+    params[`$${col}`] = vendorData[col] !== undefined && vendorData[col] !== null ? String(vendorData[col]) : null;
   });
   
   if (existingVendor.length > 0 && existingVendor[0].values && existingVendor[0].values.length > 0) {
