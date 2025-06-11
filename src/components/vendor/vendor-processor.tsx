@@ -131,6 +131,10 @@ export function VendorProcessor({ initialData, onVendorSaved }: VendorProcessorP
 
   const handleDownloadReport = async (format: 'txt' | 'pdf' | 'excel' | 'word') => {
     const { vendorName } = formInputs; 
+    if (!vendorName.trim()) {
+      toast({ title: "Cannot Export", description: "Vendor name is required to export a report.", variant: "destructive" });
+      return;
+    }
 
     const dataBankHeader = "VENDOR DATA BANK FOR FINANCIAL EVALUATION";
     const summaryHeader = "SUMMARY OF VENDOR FINANCIAL EVALUATIONS";
@@ -158,7 +162,7 @@ export function VendorProcessor({ initialData, onVendorSaved }: VendorProcessorP
     try {
       if (format === 'txt') {
           const fileSaverModule = await import('file-saver');
-          const saveAs = fileSaverModule.saveAs;
+          const saveAs = fileSaverModule.default || fileSaverModule.saveAs; // Try default first, then named
           if (typeof saveAs !== 'function') {
             console.error('Failed to load saveAs function from file-saver for TXT export.', fileSaverModule);
             toast({ title: "Export Error", description: "File saving utility for TXT export failed to load.", variant: "destructive" });
@@ -214,9 +218,9 @@ export function VendorProcessor({ initialData, onVendorSaved }: VendorProcessorP
           doc.setFontSize(10);
 
           const pdfSummaryBody = [
-            ['Score', formInputs.quantitativeScore || 'N/A', formInputs.altmanZScore || 'N/A', formInputs.qualitativeScore || 'N/A', { content: formInputs.overallFinancialEvaluationResult || 'N/A', rowSpan: 3, styles: { valign: 'top', halign: 'left' } }],
-            ['Band', formInputs.quantitativeBand || 'N/A', formInputs.altmanZBand || 'N/A', formInputs.qualitativeBand || 'N/A', ''], 
-            ['Risk Category', formInputs.quantitativeRiskCategory || 'N/A', formInputs.altmanZRiskCategory || 'N/A', formInputs.qualitativeRiskCategory || 'N/A', ''], 
+            ['Score', formInputs.quantitativeScore || 'N/A', formInputs.altmanZScore || 'N/A', formInputs.qualitativeScore || 'N/A', { content: formInputs.overallFinancialEvaluationResult || 'N/A', rowSpan: 3, styles: { valign: 'top', halign: 'left'} }],
+            ['Band', formInputs.quantitativeBand || 'N/A', formInputs.altmanZBand || 'N/A', formInputs.qualitativeBand || 'N/A', ''], // Placeholder for spanned cell
+            ['Risk Category', formInputs.quantitativeRiskCategory || 'N/A', formInputs.altmanZRiskCategory || 'N/A', formInputs.qualitativeRiskCategory || 'N/A', ''], // Placeholder for spanned cell
           ];
 
           autoTable(doc, {
@@ -224,8 +228,8 @@ export function VendorProcessor({ initialData, onVendorSaved }: VendorProcessorP
               head: [['', 'Quantitative', 'Altman - Z', 'Qualitative', 'Overall Financial Evaluation Result']],
               body: pdfSummaryBody,
               theme: 'grid',
-              styles: { fontSize: 9, cellPadding: 2, halign: 'left' },
-              headStyles: { fillColor: [38, 50, 56], textColor: 255, fontStyle: 'bold', halign: 'center' },
+              styles: { fontSize: 9, cellPadding: 1.5, halign: 'left' }, // Adjusted cellPadding
+              headStyles: { fillColor: [38, 50, 56], textColor: 255, fontStyle: 'bold', halign: 'center', cellPadding: 2 },
               columnStyles: {
                   0: {halign: 'left', fontStyle: 'bold'},
                   1: {halign: 'center'},
@@ -242,7 +246,7 @@ export function VendorProcessor({ initialData, onVendorSaved }: VendorProcessorP
           doc.setFontSize(10);
           const splitDetailedAnalysis = doc.splitTextToSize(formInputs.keyInformation || 'N/A', doc.internal.pageSize.getWidth() - 28); 
           doc.text(splitDetailedAnalysis, 14, yPos);
-          yPos += splitDetailedAnalysis.length * (doc.getLineHeight() / doc.getFont().scaleFactor * 0.7) + 10; // Adjusted spacing for lines
+          yPos += splitDetailedAnalysis.length * (doc.getLineHeight() / doc.getFont().scaleFactor * 0.7) + 10; 
 
           doc.setFontSize(14);
           doc.text(criteriaHeader, 14, yPos);
@@ -275,16 +279,14 @@ export function VendorProcessor({ initialData, onVendorSaved }: VendorProcessorP
 
           const excelSummaryData = [
               [summaryHeader],
-              summaryTableData[0], // Header row: ["Category", "Quantitative", "Altman - Z", "Qualitative", "Overall Financial Evaluation Result"]
-              // Data rows
-              [summaryTableData[1][0], summaryTableData[1][1] || 'N/A', summaryTableData[1][2] || 'N/A', summaryTableData[1][3] || 'N/A', formInputs.overallFinancialEvaluationResult || 'N/A'], // Score row with overall result
-              [summaryTableData[2][0], summaryTableData[2][1] || 'N/A', summaryTableData[2][2] || 'N/A', summaryTableData[2][3] || 'N/A', null], // Band row, null for spanned cell
-              [summaryTableData[3][0], summaryTableData[3][1] || 'N/A', summaryTableData[3][2] || 'N/A', summaryTableData[3][3] || 'N/A', null], // Risk Category row, null for spanned cell
+              summaryTableData[0], // Header row
+              [summaryTableData[1][0], summaryTableData[1][1] || 'N/A', summaryTableData[1][2] || 'N/A', summaryTableData[1][3] || 'N/A', formInputs.overallFinancialEvaluationResult || 'N/A'],
+              [summaryTableData[2][0], summaryTableData[2][1] || 'N/A', summaryTableData[2][2] || 'N/A', summaryTableData[2][3] || 'N/A', null],
+              [summaryTableData[3][0], summaryTableData[3][1] || 'N/A', summaryTableData[3][2] || 'N/A', summaryTableData[3][3] || 'N/A', null],
           ];
           
           const ws2 = XLSX.utils.aoa_to_sheet(excelSummaryData);
           if (!ws2['!merges']) ws2['!merges'] = [];
-          // Merge E3:E5 (0-indexed: row 2, col 4 to row 4, col 4) for "Overall Financial Evaluation Result"
           ws2['!merges'].push({ s: { r: 2, c: 4 }, e: { r: 4, c: 4 } }); 
           XLSX.utils.book_append_sheet(wb, ws2, "Summary");
 
@@ -308,8 +310,9 @@ export function VendorProcessor({ initialData, onVendorSaved }: VendorProcessorP
       } else if (format === 'word') {
           const { Document, Packer, Paragraph, Table: DocxTable, TableCell, TableRow, TextRun, HeadingLevel, WidthType, BorderStyle, VerticalAlign } = await import('docx');
           const fileSaverModule = await import('file-saver');
-          const saveAs = fileSaverModule.saveAs;
-           if (typeof saveAs !== 'function') {
+          const saveAs = fileSaverModule.default || fileSaverModule.saveAs; // Try default first, then named
+
+          if (typeof saveAs !== 'function') {
             console.error('Failed to load saveAs function from file-saver for Word export.', fileSaverModule);
             toast({ title: "Export Error", description: "File saving utility for Word export failed to load.", variant: "destructive" });
             setIsExporting(false);
@@ -410,7 +413,7 @@ export function VendorProcessor({ initialData, onVendorSaved }: VendorProcessorP
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="vendorName" className="text-foreground">Vendor Name <span className="text-destructive">*</span></Label>
-                <Input id="vendorName" name="vendorName" type="text" placeholder="e.g., Acme Corp" value={formInputs.vendorName} onChange={handleInputChange} required className="mt-1" disabled={!!initialData && !!initialData.vendorName} />
+                <Input id="vendorName" name="vendorName" type="text" placeholder="e.g., Acme Corp" value={formInputs.vendorName} onChange={handleInputChange} required className="mt-1" disabled={!!initialData?.vendorName} />
               </div>
               <div>
                 <Label htmlFor="overallResult" className="text-foreground">Overall Result (Data Bank)</Label>
