@@ -1,46 +1,58 @@
-
 // src/app/search-vendor-report/page.tsx
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
-import { VendorProcessor, VENDOR_BANK_STORAGE_KEY, type VendorInputFields, initialInputState } from '@/components/vendor/vendor-processor';
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import { VendorProcessor, type VendorInputFields, initialInputState } from '@/components/vendor/vendor-processor';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Search, Users, Trash2, Edit } from 'lucide-react';
+import { Search, Users, Trash2, Edit, Loader2 } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
+import { getAllVendorsDb, removeVendorDb } from '@/lib/database';
+
 
 export default function SearchVendorReportPage() {
-  const [savedVendors, setSavedVendors] = useState<VendorInputFields[]>([]);
+  const [allVendors, setAllVendors] = useState<VendorInputFields[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedVendor, setSelectedVendor] = useState<VendorInputFields | null>(null);
+  const [isLoadingList, setIsLoadingList] = useState(true);
   const { toast } = useToast();
   
-  useEffect(() => {
-    const storedVendors = localStorage.getItem(VENDOR_BANK_STORAGE_KEY);
-    if (storedVendors) {
-      try {
-        const parsedVendors: VendorInputFields[] = JSON.parse(storedVendors);
-        if (Array.isArray(parsedVendors)) {
-          setSavedVendors(parsedVendors);
-        }
-      } catch (e) {
-        console.error("Failed to parse vendors from localStorage", e);
-      }
+  const fetchVendors = useCallback(async () => {
+    setIsLoadingList(true);
+    try {
+      const vendorsFromDb = await getAllVendorsDb();
+      setAllVendors(vendorsFromDb);
+    } catch (e) {
+      console.error("Failed to fetch vendors from DB", e);
+      toast({
+        title: "Error Loading Vendors",
+        description: "Could not retrieve vendor data from the database.",
+        variant: "destructive"
+      });
+      setAllVendors([]); // Ensure it's an array even on error
+    } finally {
+      setIsLoadingList(false);
     }
-  }, []);
+  }, [toast]);
 
+  useEffect(() => {
+    fetchVendors();
+  }, [fetchVendors]);
 
-  const handleVendorListUpdate = (updatedVendors: VendorInputFields[]) => {
-    setSavedVendors(updatedVendors);
-    if (selectedVendor && updatedVendors.some(v => v.vendorName === selectedVendor.vendorName)) {
-        const refreshedVendor = updatedVendors.find(v => v.vendorName === selectedVendor.vendorName);
-        if (refreshedVendor) {
-            setSelectedVendor(refreshedVendor);
-        }
-    } else if (selectedVendor && !updatedVendors.some(v => v.vendorName === selectedVendor.vendorName)) {
-        // If the currently selected vendor was removed or its name changed (which acts like removal here)
-        setSelectedVendor(null);
+  const handleVendorListUpdate = () => {
+    // This function is called after a save in VendorProcessor
+    // Re-fetch the list to get the latest data
+    fetchVendors();
+    // If the selected vendor was just updated, we might want to refresh its data
+    // or clear the selection if it was renamed (though vendorName is PK and disabled on edit)
+    if (selectedVendor) {
+      const stillExists = allVendors.find(v => v.vendorName === selectedVendor.vendorName);
+      if (stillExists) {
+         //setSelectedVendor(stillExists); // Potentially refresh with latest data
+      } else {
+        setSelectedVendor(null); // Vendor might have been deleted or name changed
+      }
     }
   };
 
@@ -52,28 +64,36 @@ export default function SearchVendorReportPage() {
     });
   };
 
-  const handleRemoveVendor = (vendorNameToRemove: string) => {
-    const updatedVendors = savedVendors.filter(v => v.vendorName !== vendorNameToRemove);
-    setSavedVendors(updatedVendors);
-    localStorage.setItem(VENDOR_BANK_STORAGE_KEY, JSON.stringify(updatedVendors));
-    toast({
-      title: "Vendor Removed",
-      description: `${vendorNameToRemove} has been removed from the data bank.`,
-      variant: "destructive"
-    });
-    if (selectedVendor && selectedVendor.vendorName === vendorNameToRemove) {
-      setSelectedVendor(null); // Clear selection if the removed vendor was selected
+  const handleRemoveVendor = async (vendorNameToRemove: string) => {
+    try {
+      await removeVendorDb(vendorNameToRemove);
+      toast({
+        title: "Vendor Removed",
+        description: `${vendorNameToRemove} has been removed from the database.`,
+        variant: "destructive"
+      });
+      setAllVendors(prev => prev.filter(v => v.vendorName !== vendorNameToRemove));
+      if (selectedVendor && selectedVendor.vendorName === vendorNameToRemove) {
+        setSelectedVendor(null); 
+      }
+    } catch (error) {
+      console.error("Failed to remove vendor from DB:", error);
+      toast({
+        title: "Removal Failed",
+        description: `Could not remove ${vendorNameToRemove}. ${error instanceof Error ? error.message : ''}`,
+        variant: "destructive",
+      });
     }
   };
 
   const filteredVendors = useMemo(() => {
     if (!searchTerm.trim()) {
-      return savedVendors;
+      return allVendors;
     }
-    return savedVendors.filter(vendor =>
+    return allVendors.filter(vendor =>
       vendor.vendorName.toLowerCase().includes(searchTerm.toLowerCase())
     );
-  }, [savedVendors, searchTerm]);
+  }, [allVendors, searchTerm]);
 
   return (
     <div className="min-h-screen bg-background flex flex-col items-center py-8 px-4">
@@ -94,7 +114,7 @@ export default function SearchVendorReportPage() {
               <Users className="mr-3 h-7 w-7" />
               Vendor Data Bank
             </CardTitle>
-            <CardDescription className="text-md">Search, load, or remove saved vendor evaluation data.</CardDescription>
+            <CardDescription className="text-md">Search, load, or remove saved vendor evaluation data from the database.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex items-center space-x-2">
@@ -106,7 +126,12 @@ export default function SearchVendorReportPage() {
                 className="flex-grow"
               />
             </div>
-            {filteredVendors.length > 0 ? (
+            {isLoadingList ? (
+              <div className="flex justify-center items-center py-10">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <p className="ml-2 text-muted-foreground">Loading vendors...</p>
+              </div>
+            ) : filteredVendors.length > 0 ? (
               <ul className="space-y-2 max-h-60 overflow-y-auto pr-2 border rounded-md p-2">
                 {filteredVendors.map(vendor => (
                   <li key={vendor.vendorName} className="flex items-center justify-between p-3 bg-background hover:bg-muted/50 rounded-md shadow-sm border">
@@ -124,7 +149,7 @@ export default function SearchVendorReportPage() {
               </ul>
             ) : (
               <p className="text-muted-foreground text-center py-4">
-                {savedVendors.length === 0 ? "No vendors saved yet. Add some via the 'Enter Vendor Evaluation' page." : "No vendors match your search."}
+                {allVendors.length === 0 ? "No vendors saved in the database yet. Add some via the 'Enter Vendor Evaluation' page." : "No vendors match your search."}
               </p>
             )}
           </CardContent>
@@ -136,7 +161,7 @@ export default function SearchVendorReportPage() {
             <VendorProcessor initialData={selectedVendor} onVendorSaved={handleVendorListUpdate} />
           </div>
         )}
-        {!selectedVendor && (
+        {!selectedVendor && !isLoadingList && (
           <div className="mt-8 w-full text-center text-muted-foreground">
             <p>Select a vendor from the list above to view or edit their details.</p>
           </div>
