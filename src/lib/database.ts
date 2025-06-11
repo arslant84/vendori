@@ -1,9 +1,9 @@
+
 // src/lib/database.ts
 'use client';
 
 import initSqlJs, { type Database, type SqlValue } from 'sql.js';
 import type { VendorInputFields } from '@/components/vendor/vendor-processor';
-// Removed import of initialInputState to break circular dependency
 
 let dbPromise: Promise<Database> | null = null;
 const DB_STORAGE_KEY = 'vendorSqliteDatabase'; // New key for SQLite data
@@ -53,15 +53,29 @@ const initialize = async (): Promise<Database> => {
     return db;
   } catch (error) {
     console.error("Failed to initialize database:", error);
-    // Attempt to clear potentially corrupted DB and re-initialize
-    localStorage.removeItem(DB_STORAGE_KEY);
-    if (error instanceof Error && error.message.includes("No such file or directory") && error.message.includes("sql-wasm.wasm")) {
-        alert("Critical Error: sql-wasm.wasm not found. Please ensure it's in the public folder. The app may not function correctly.");
+    localStorage.removeItem(DB_STORAGE_KEY); // Attempt to clear potentially corrupted DB
+
+    let specificMessage = "Database initialization failed critically.";
+    if (error instanceof Error) {
+      const lowerCaseErrorMessage = error.message.toLowerCase();
+      if (lowerCaseErrorMessage.includes("sql-wasm.wasm") || 
+          lowerCaseErrorMessage.includes("failed to execute 'compile' on 'webassembly'") ||
+          lowerCaseErrorMessage.includes("http status code is not ok") ||
+          lowerCaseErrorMessage.includes("networkerror when attempting to fetch resource") || // Firefox
+          lowerCaseErrorMessage.includes("failed to fetch") // Generic fetch failure
+          ) {
+        specificMessage = "Critical Error: Could not load 'sql-wasm.wasm'. " +
+                          "Please ensure 'sql-wasm.wasm' from 'node_modules/sql.js/dist/' is present in the 'public' directory of your project. " +
+                          "The application may not function correctly without it. Attempting to load from '/sql-wasm.wasm'.";
+        console.error(specificMessage, error);
+      } else {
+        specificMessage = `Database initialization failed. Data might be lost or inaccessible. Error: ${error.message}`;
+        console.error(specificMessage, error);
+      }
     } else {
-        alert("Database initialization failed. Data might be lost or inaccessible. Attempting to reset. Error: " + (error instanceof Error ? error.message : String(error)));
+      console.error(specificMessage, error); // Log original error if not an Error instance
     }
-    // Fallback: re-throw or return a dummy DB to prevent app crash
-    throw new Error("Database initialization failed critically.");
+    throw new Error(specificMessage); // Re-throw with a more informative message
   }
 };
 
@@ -102,18 +116,15 @@ export const saveVendorDb = async (vendorData: VendorInputFields): Promise<void>
   const placeholders = VENDOR_COLUMNS.map(col => `$${col}`).join(', ');
   const params: { [key: string]: SqlValue } = {};
   VENDOR_COLUMNS.forEach(col => {
-    // Ensure all keys from VENDOR_COLUMNS are present in params, defaulting to null if not in vendorData
     params[`$${col}`] = vendorData[col] !== undefined && vendorData[col] !== null ? String(vendorData[col]) : null;
   });
   
   if (existingVendor.length > 0 && existingVendor[0].values && existingVendor[0].values.length > 0) {
-    // Update
     const setClauses = VENDOR_COLUMNS.filter(col => col !== 'vendorName').map(col => `${col} = $${col}`).join(', ');
     const stmt = db.prepare(`UPDATE vendors SET ${setClauses} WHERE vendorName = $vendorName`);
     stmt.run(params);
     stmt.free();
   } else {
-    // Insert
     const stmt = db.prepare(`INSERT INTO vendors (${columns}) VALUES (${placeholders})`);
     stmt.run(params);
     stmt.free();
