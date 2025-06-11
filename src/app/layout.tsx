@@ -1,7 +1,15 @@
+
 import type {Metadata} from 'next';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 import { AppNavigation } from '@/components/layout/app-navigation';
+import { Montserrat } from 'next/font/google';
+
+const montserrat = Montserrat({
+  subsets: ['latin'],
+  weights: [300, 700, 900],
+  variable: '--font-montserrat',
+});
 
 export const metadata: Metadata = {
   title: 'Vendor Insights',
@@ -14,13 +22,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" className={`${montserrat.variable}`}>
       <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;700;900&display=swap" rel="stylesheet"></link>
+        {/* Google Font links for Montserrat are now handled by next/font */}
       </head>
-      <body className="font-body font-light antialiased bg-background text-foreground">
+      <body className={`${montserrat.className} font-body font-light antialiased bg-background text-foreground`}>
           <AppNavigation />
           <main>{children}</main>
           <Toaster />
