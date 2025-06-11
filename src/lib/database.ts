@@ -6,7 +6,7 @@ import initSqlJs, { type Database, type SqlValue } from 'sql.js';
 import type { VendorInputFields } from '@/components/vendor/vendor-processor';
 
 let dbPromise: Promise<Database> | null = null;
-const DB_STORAGE_KEY = 'vendorSqliteDatabase'; // New key for SQLite data
+const DB_STORAGE_KEY = 'vendorSqliteDatabase';
 
 // Statically define VENDOR_COLUMNS based on the VendorInputFields interface
 const VENDOR_COLUMNS: Array<keyof VendorInputFields> = [
@@ -43,38 +43,49 @@ const initialize = async (): Promise<Database> => {
       db = new SQL.Database(dbArray);
     } else {
       db = new SQL.Database();
-      const columnDefinitions = VENDOR_COLUMNS.map(colName => 
+      const columnDefinitions = VENDOR_COLUMNS.map(colName =>
         `${colName} TEXT${colName === 'vendorName' ? ' PRIMARY KEY' : ''}`
       ).join(', ');
       const createTableQuery = `CREATE TABLE IF NOT EXISTS vendors (${columnDefinitions});`;
       db.run(createTableQuery);
-      persistDb(db); // Persist empty table structure
+      persistDb(db);
     }
     return db;
   } catch (error) {
-    console.error("Failed to initialize database:", error);
-    localStorage.removeItem(DB_STORAGE_KEY); // Attempt to clear potentially corrupted DB
+    console.error("Database initialization encountered an error:", error); // Log the raw error
 
-    let specificMessage = "Database initialization failed critically.";
+    let specificMessage = "A critical error occurred during database initialization.";
     if (error instanceof Error) {
       const lowerCaseErrorMessage = error.message.toLowerCase();
-      if (lowerCaseErrorMessage.includes("sql-wasm.wasm") || 
-          lowerCaseErrorMessage.includes("failed to execute 'compile' on 'webassembly'") ||
-          lowerCaseErrorMessage.includes("http status code is not ok") ||
-          lowerCaseErrorMessage.includes("networkerror when attempting to fetch resource") || // Firefox
-          lowerCaseErrorMessage.includes("failed to fetch") // Generic fetch failure
-          ) {
-        specificMessage = "Critical Error: Could not load 'sql-wasm.wasm'. " +
-                          "Please ensure 'sql-wasm.wasm' from 'node_modules/sql.js/dist/' is present in the 'public' directory of your project. " +
-                          "The application may not function correctly without it. Attempting to load from '/sql-wasm.wasm'.";
-        console.error(specificMessage, error);
+      // More robust check for WASM loading issues
+      if (
+        lowerCaseErrorMessage.includes("failed to execute 'compile' on 'webassembly'") ||
+        lowerCaseErrorMessage.includes("http status code is not ok") ||
+        lowerCaseErrorMessage.includes("networkerror when attempting to fetch resource") || // Firefox
+        lowerCaseErrorMessage.includes("failed to fetch") || // Generic fetch failure
+        lowerCaseErrorMessage.includes("both async and sync fetching of the wasm failed") ||
+        lowerCaseErrorMessage.includes("could not load sql-wasm.wasm") // A general check
+      ) {
+        specificMessage = "CRITICAL DATABASE ERROR: Could not load 'sql-wasm.wasm'. " +
+                          "This file is essential for database operations. " +
+                          "Please ensure 'sql-wasm.wasm' (copied from 'node_modules/sql.js/dist/sql-wasm.wasm') " +
+                          "is placed in the 'public' directory of your Next.js project. " +
+                          "The application expects to fetch it from the URL '/sql-wasm.wasm'. " +
+                          "Verify the file exists at 'public/sql-wasm.wasm' and the server can access it.";
+        console.error(specificMessage); // Log the detailed guidance
       } else {
         specificMessage = `Database initialization failed. Data might be lost or inaccessible. Error: ${error.message}`;
-        console.error(specificMessage, error);
+        console.error(specificMessage);
       }
     } else {
-      console.error(specificMessage, error); // Log original error if not an Error instance
+      // Handle cases where the error is not an Error instance
+      specificMessage = `An unknown error occurred during database initialization: ${String(error)}`;
+      console.error(specificMessage);
     }
+    // Attempt to clear potentially corrupted DB from localStorage to allow a fresh start on next attempt
+    localStorage.removeItem(DB_STORAGE_KEY);
+    console.warn(`Attempted to clear potentially corrupted database from localStorage ('${DB_STORAGE_KEY}'). Please refresh the page after ensuring sql-wasm.wasm is correctly placed.`);
+
     throw new Error(specificMessage); // Re-throw with a more informative message
   }
 };
@@ -118,7 +129,7 @@ export const saveVendorDb = async (vendorData: VendorInputFields): Promise<void>
   VENDOR_COLUMNS.forEach(col => {
     params[`$${col}`] = vendorData[col] !== undefined && vendorData[col] !== null ? String(vendorData[col]) : null;
   });
-  
+
   if (existingVendor.length > 0 && existingVendor[0].values && existingVendor[0].values.length > 0) {
     const setClauses = VENDOR_COLUMNS.filter(col => col !== 'vendorName').map(col => `${col} = $${col}`).join(', ');
     const stmt = db.prepare(`UPDATE vendors SET ${setClauses} WHERE vendorName = $vendorName`);
