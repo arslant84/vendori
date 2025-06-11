@@ -147,10 +147,9 @@ export function VendorProcessor({ initialData, onVendorSaved }: VendorProcessorP
       { label: "Evaluator Name/Department", value: formInputs.evaluatorNameDepartment },
     ];
 
-    // This data is used for Excel and as a base for Word
     const summaryTableData = [
         ["Category", "Quantitative", "Altman - Z", "Qualitative", "Overall Financial Evaluation Result"],
-        ["Score", formInputs.quantitativeScore, formInputs.altmanZScore, formInputs.qualitativeScore, ""], // Last empty cell for Excel/Word to allow custom content via rowspan
+        ["Score", formInputs.quantitativeScore, formInputs.altmanZScore, formInputs.qualitativeScore, ""],
         ["Band", formInputs.quantitativeBand, formInputs.altmanZBand, formInputs.qualitativeBand, ""],
         ["Risk Category", formInputs.quantitativeRiskCategory, formInputs.altmanZRiskCategory, formInputs.qualitativeRiskCategory, ""],
     ];
@@ -158,7 +157,14 @@ export function VendorProcessor({ initialData, onVendorSaved }: VendorProcessorP
     setIsExporting(true);
     try {
       if (format === 'txt') {
-          const { saveAs } = await import('file-saver');
+          const fileSaverModule = await import('file-saver');
+          const saveAs = fileSaverModule.saveAs;
+          if (typeof saveAs !== 'function') {
+            console.error('Failed to load saveAs function from file-saver for TXT export.', fileSaverModule);
+            toast({ title: "Export Error", description: "File saving utility for TXT export failed to load.", variant: "destructive" });
+            setIsExporting(false);
+            return;
+          }
           let content = `${dataBankHeader}\n`;
           content += "--------------------------------------------------\n";
           dataBankFields.forEach(field => content += `${field.label}: ${field.value || 'N/A'}\n`);
@@ -197,8 +203,8 @@ export function VendorProcessor({ initialData, onVendorSaved }: VendorProcessorP
               head: [['Field', 'Value']],
               body: dataBankFields.map(f => [f.label, f.value || 'N/A']),
               theme: 'striped',
-              styles: { fontSize: 9, cellPadding: 2 },
-              headStyles: { fillColor: [38, 50, 56], textColor: 255, fontStyle: 'bold' }, 
+              styles: { fontSize: 9, cellPadding: 2, halign: 'left' },
+              headStyles: { fillColor: [38, 50, 56], textColor: 255, fontStyle: 'bold', halign: 'left' }, 
           });
           yPos = (doc as any).lastAutoTable.finalY + 10;
 
@@ -209,8 +215,8 @@ export function VendorProcessor({ initialData, onVendorSaved }: VendorProcessorP
 
           const pdfSummaryBody = [
             ['Score', formInputs.quantitativeScore || 'N/A', formInputs.altmanZScore || 'N/A', formInputs.qualitativeScore || 'N/A', { content: formInputs.overallFinancialEvaluationResult || 'N/A', rowSpan: 3, styles: { valign: 'top', halign: 'left' } }],
-            ['Band', formInputs.quantitativeBand || 'N/A', formInputs.altmanZBand || 'N/A', formInputs.qualitativeBand || 'N/A', ''], // Empty for rowSpan
-            ['Risk Category', formInputs.quantitativeRiskCategory || 'N/A', formInputs.altmanZRiskCategory || 'N/A', formInputs.qualitativeRiskCategory || 'N/A', ''], // Empty for rowSpan
+            ['Band', formInputs.quantitativeBand || 'N/A', formInputs.altmanZBand || 'N/A', formInputs.qualitativeBand || 'N/A', ''], 
+            ['Risk Category', formInputs.quantitativeRiskCategory || 'N/A', formInputs.altmanZRiskCategory || 'N/A', formInputs.qualitativeRiskCategory || 'N/A', ''], 
           ];
 
           autoTable(doc, {
@@ -218,10 +224,14 @@ export function VendorProcessor({ initialData, onVendorSaved }: VendorProcessorP
               head: [['', 'Quantitative', 'Altman - Z', 'Qualitative', 'Overall Financial Evaluation Result']],
               body: pdfSummaryBody,
               theme: 'grid',
-              styles: { fontSize: 9, cellPadding: 2 },
-              headStyles: { fillColor: [38, 50, 56], textColor: 255, fontStyle: 'bold' },
+              styles: { fontSize: 9, cellPadding: 2, halign: 'left' },
+              headStyles: { fillColor: [38, 50, 56], textColor: 255, fontStyle: 'bold', halign: 'center' },
               columnStyles: {
-                  4: { cellWidth: 'wrap' } // Style for the 5th column (index 4)
+                  0: {halign: 'left', fontStyle: 'bold'},
+                  1: {halign: 'center'},
+                  2: {halign: 'center'},
+                  3: {halign: 'center'},
+                  4: { cellWidth: 'wrap', halign: 'left' } 
               },
           });
           yPos = (doc as any).lastAutoTable.finalY + 10;
@@ -230,9 +240,9 @@ export function VendorProcessor({ initialData, onVendorSaved }: VendorProcessorP
           doc.text(detailedAnalysisHeader, 14, yPos);
           yPos += 8;
           doc.setFontSize(10);
-          const splitDetailedAnalysis = doc.splitTextToSize(formInputs.keyInformation || 'N/A', doc.internal.pageSize.getWidth() - 28); // Use available width
+          const splitDetailedAnalysis = doc.splitTextToSize(formInputs.keyInformation || 'N/A', doc.internal.pageSize.getWidth() - 28); 
           doc.text(splitDetailedAnalysis, 14, yPos);
-          yPos += splitDetailedAnalysis.length * (doc.getFontSize() * 0.5) + 10; 
+          yPos += splitDetailedAnalysis.length * (doc.getLineHeight() / doc.getFont().scaleFactor * 0.7) + 10; // Adjusted spacing for lines
 
           doc.setFontSize(14);
           doc.text(criteriaHeader, 14, yPos);
@@ -243,8 +253,11 @@ export function VendorProcessor({ initialData, onVendorSaved }: VendorProcessorP
               head: [['Risk Level', 'Criteria']],
               body: Object.entries(financialCriteriaLegend).map(([level, criteria]) => [level, criteria]),
               theme: 'striped',
-              styles: { fontSize: 9, cellPadding: 2 },
-              headStyles: { fillColor: [38, 50, 56], textColor: 255, fontStyle: 'bold' },
+              styles: { fontSize: 9, cellPadding: 2, halign: 'left' },
+              headStyles: { fillColor: [38, 50, 56], textColor: 255, fontStyle: 'bold', halign: 'left' },
+              columnStyles: {
+                0: {fontStyle: 'bold'}
+              }
           });
 
           doc.save(`${vendorName}_Evaluation_Report.pdf`);
@@ -260,27 +273,21 @@ export function VendorProcessor({ initialData, onVendorSaved }: VendorProcessorP
           const ws1 = XLSX.utils.aoa_to_sheet(wsDataBank);
           XLSX.utils.book_append_sheet(wb, ws1, "Data Bank");
 
-          const wsSummary = [
+          const excelSummaryData = [
               [summaryHeader],
-              summaryTableData[0], // Header row
-              summaryTableData[1], // Score
-              summaryTableData[2], // Band
-              summaryTableData[3], // Risk Category
-              // For Excel, put overall result in the cell of the first data row, spanned if possible by Excel features, or just here.
-              // For aoa_to_sheet, direct row/col spanning is not an option, merge cells post-creation if needed or simply list it.
-              // This structure lists it directly under the table, or as a separate note.
-              // To put it in the table, we might need a more complex structure for summaryTableData or post-processing.
-              // For simplicity, let's place it as if it's the "content" of the merged cell for "Score" row.
+              summaryTableData[0], // Header row: ["Category", "Quantitative", "Altman - Z", "Qualitative", "Overall Financial Evaluation Result"]
+              // Data rows
+              [summaryTableData[1][0], summaryTableData[1][1] || 'N/A', summaryTableData[1][2] || 'N/A', summaryTableData[1][3] || 'N/A', formInputs.overallFinancialEvaluationResult || 'N/A'], // Score row with overall result
+              [summaryTableData[2][0], summaryTableData[2][1] || 'N/A', summaryTableData[2][2] || 'N/A', summaryTableData[2][3] || 'N/A', null], // Band row, null for spanned cell
+              [summaryTableData[3][0], summaryTableData[3][1] || 'N/A', summaryTableData[3][2] || 'N/A', summaryTableData[3][3] || 'N/A', null], // Risk Category row, null for spanned cell
           ];
-          // Manually adjust for Excel to put overall result in the right spot for the first data row.
-          wsSummary[2][4] = formInputs.overallFinancialEvaluationResult || 'N/A'; // Score row, Overall Result column
-
-          const ws2 = XLSX.utils.aoa_to_sheet(wsSummary);
-          // Note: XLSX.utils.aoa_to_sheet doesn't directly support row/col spans. Merges are added later.
+          
+          const ws2 = XLSX.utils.aoa_to_sheet(excelSummaryData);
           if (!ws2['!merges']) ws2['!merges'] = [];
-          ws2['!merges'].push({ s: { r: 2, c: 4 }, e: { r: 4, c: 4 } }); // Merge E3:E5 (0-indexed rows/cols)
-
+          // Merge E3:E5 (0-indexed: row 2, col 4 to row 4, col 4) for "Overall Financial Evaluation Result"
+          ws2['!merges'].push({ s: { r: 2, c: 4 }, e: { r: 4, c: 4 } }); 
           XLSX.utils.book_append_sheet(wb, ws2, "Summary");
+
 
           const wsDetailedAnalysis = [
               [detailedAnalysisHeader],
@@ -300,7 +307,14 @@ export function VendorProcessor({ initialData, onVendorSaved }: VendorProcessorP
 
       } else if (format === 'word') {
           const { Document, Packer, Paragraph, Table: DocxTable, TableCell, TableRow, TextRun, HeadingLevel, WidthType, BorderStyle, VerticalAlign } = await import('docx');
-          const { saveAs } = await import('file-saver');
+          const fileSaverModule = await import('file-saver');
+          const saveAs = fileSaverModule.saveAs;
+           if (typeof saveAs !== 'function') {
+            console.error('Failed to load saveAs function from file-saver for Word export.', fileSaverModule);
+            toast({ title: "Export Error", description: "File saving utility for Word export failed to load.", variant: "destructive" });
+            setIsExporting(false);
+            return;
+          }
 
           const sections = [];
           sections.push(new Paragraph({ text: vendorName + " - Financial Evaluation Report", heading: HeadingLevel.TITLE }));
@@ -317,25 +331,24 @@ export function VendorProcessor({ initialData, onVendorSaved }: VendorProcessorP
           sections.push(new Paragraph({ text: summaryHeader, heading: HeadingLevel.HEADING_1, spacing: { before: 200, after: 100 } }));
           
           const summaryDocxTableRows = [
-              new TableRow({ // Header Row
+              new TableRow({ 
                   children: summaryTableData[0].map(headerText => new TableCell({ 
                       children: [new Paragraph({children: [new TextRun({text: headerText, bold: true})]})], 
                       borders: { top: {style: BorderStyle.SINGLE, size: 1}, bottom: {style: BorderStyle.SINGLE, size: 1}, left: {style: BorderStyle.SINGLE, size: 1}, right: {style: BorderStyle.SINGLE, size: 1} }
                   })),
                   tableHeader: true,
               }),
-              // Data Rows
               ...summaryTableData.slice(1).map((rowData, rowIndex) => new TableRow({
                   children: rowData.map((cellText, cellIndex) => {
-                      if (cellIndex === 4 && rowIndex === 0) { // "Overall Financial Evaluation Result" cell in the first data row ("Score" row)
+                      if (cellIndex === 4 && rowIndex === 0) { 
                           return new TableCell({
                               children: [new Paragraph(formInputs.overallFinancialEvaluationResult || 'N/A')],
                               rowSpan: 3, 
-                              verticalAlign: VerticalAlign.TOP, // Added for better alignment
+                              verticalAlign: VerticalAlign.TOP, 
                               borders: { top: {style: BorderStyle.SINGLE, size: 1}, bottom: {style: BorderStyle.SINGLE, size: 1}, left: {style: BorderStyle.SINGLE, size: 1}, right: {style: BorderStyle.SINGLE, size: 1} }
                           });
                       }
-                      if (cellIndex === 4 && rowIndex > 0) return null; // These cells are covered by rowSpan
+                      if (cellIndex === 4 && rowIndex > 0) return null; 
                       return new TableCell({ 
                           children: [new Paragraph(String(cellText || 'N/A'))], 
                           borders: { top: {style: BorderStyle.SINGLE, size: 1}, bottom: {style: BorderStyle.SINGLE, size: 1}, left: {style: BorderStyle.SINGLE, size: 1}, right: {style: BorderStyle.SINGLE, size: 1} } 
@@ -385,7 +398,7 @@ export function VendorProcessor({ initialData, onVendorSaved }: VendorProcessorP
           Vendor Evaluation Data Entry
         </CardTitle>
         <CardDescription className="text-md">
-          {initialData ? `Editing details for ${initialData.vendorName}. ` : 'Enter new vendor evaluation details. '}
+          {initialData && initialData.vendorName ? `Editing details for ${initialData.vendorName}. ` : 'Enter new vendor evaluation details. '}
           Fill the form to save or update vendor information.
         </CardDescription>
       </CardHeader>
@@ -505,7 +518,7 @@ export function VendorProcessor({ initialData, onVendorSaved }: VendorProcessorP
           <div className="flex flex-col sm:flex-row gap-2 print-hide">
             <Button type="submit" disabled={isLoading || isExporting || !formInputs.vendorName.trim()} className="flex-grow bg-primary hover:bg-primary/90 text-base py-3">
               {isLoading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Save className="mr-2 h-5 w-5" />}
-              {initialData ? 'Update Vendor Data' : 'Save Vendor Data'}
+              {initialData && initialData.vendorName ? 'Update Vendor Data' : 'Save Vendor Data'}
             </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
