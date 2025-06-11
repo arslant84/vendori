@@ -2,14 +2,28 @@
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { VendorProcessor, type VendorInputFields, initialInputState } from '@/components/vendor/vendor-processor';
+import type { VendorInputFields } from '@/components/vendor/vendor-processor';
+import { initialInputState } from '@/components/vendor/vendor-processor'; // Keep this static import
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Search, Users, Trash2, Edit, Loader2 } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { getAllVendorsDb, removeVendorDb } from '@/lib/database';
+import dynamic from 'next/dynamic';
 
+const DynamicVendorProcessor = dynamic(() =>
+  import('@/components/vendor/vendor-processor').then(mod => mod.VendorProcessor),
+  {
+    loading: () => (
+      <div className="flex justify-center items-center py-10">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <p className="ml-2 text-muted-foreground">Loading editor...</p>
+      </div>
+    ),
+    ssr: false, // VendorProcessor relies on client-side DB and export features
+  }
+);
 
 export default function SearchVendorReportPage() {
   const [allVendors, setAllVendors] = useState<VendorInputFields[]>([]);
@@ -41,17 +55,13 @@ export default function SearchVendorReportPage() {
   }, [fetchVendors]);
 
   const handleVendorListUpdate = () => {
-    // This function is called after a save in VendorProcessor
-    // Re-fetch the list to get the latest data
     fetchVendors();
-    // If the selected vendor was just updated, we might want to refresh its data
-    // or clear the selection if it was renamed (though vendorName is PK and disabled on edit)
     if (selectedVendor) {
-      const stillExists = allVendors.find(v => v.vendorName === selectedVendor.vendorName);
-      if (stillExists) {
-         //setSelectedVendor(stillExists); // Potentially refresh with latest data
+      const updatedVendor = allVendors.find(v => v.vendorName === selectedVendor.vendorName);
+      if (updatedVendor) {
+         // setSelectedVendor(updatedVendor); // Potentially refresh with latest data if needed
       } else {
-        setSelectedVendor(null); // Vendor might have been deleted or name changed
+        setSelectedVendor(null); 
       }
     }
   };
@@ -158,7 +168,7 @@ export default function SearchVendorReportPage() {
         {selectedVendor && (
           <div className="mt-8 w-full">
              <h2 className="text-3xl font-headline font-black text-primary mb-6 text-center">View/Edit Vendor Evaluation</h2>
-            <VendorProcessor initialData={selectedVendor} onVendorSaved={handleVendorListUpdate} />
+            <DynamicVendorProcessor initialData={selectedVendor} onVendorSaved={handleVendorListUpdate} />
           </div>
         )}
         {!selectedVendor && !isLoadingList && (
