@@ -18,6 +18,18 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  webpack: (config, { isServer }) => {
+    // Fixes npm packages that depend on `fs` module
+    if (!isServer) {
+      config.resolve.fallback = {
+        ...config.resolve.fallback, // Spread existing fallbacks
+        fs: false, // Tells webpack to ignore fs module on client-side
+        path: false, // Tells webpack to ignore path module on client-side
+      };
+    }
+
+    return config;
+  },
 };
 
 export default nextConfig;
