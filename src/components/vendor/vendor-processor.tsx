@@ -9,15 +9,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Save, FileText, Download, Printer, FileType, FileSpreadsheet, FileJson } from 'lucide-react';
+import { Save, FileText, Download, Printer, FileType, FileSpreadsheet, FileJson, Loader2 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from "@/hooks/use-toast";
-import { jsPDF } from 'jspdf';
-import 'jspdf-autotable';
-import * as XLSX from 'xlsx';
-import { Document, Packer, Paragraph, Table as DocxTable, TableCell, TableRow, TextRun, HeadingLevel, WidthType, BorderStyle } from 'docx';
-import { saveAs } from 'file-saver';
-import { saveVendorDb, type getAllVendorsDb } from '@/lib/database';
+import { saveVendorDb } from '@/lib/database';
+
 
 export interface VendorInputFields {
   vendorName: string;
@@ -65,16 +61,15 @@ export const initialInputState: VendorInputFields = {
   keyInformation: '',
 };
 
-export const VENDOR_BANK_STORAGE_KEY = 'vendorInformationBank_manual'; // Kept for reference, now managed by database.ts
-
 interface VendorProcessorProps {
   initialData?: VendorInputFields | null;
-  onVendorSaved?: (vendors: VendorInputFields[]) => void; // Callback might need adjustment based on DB
+  onVendorSaved?: () => void; 
 }
 
 export function VendorProcessor({ initialData, onVendorSaved }: VendorProcessorProps) {
   const [formInputs, setFormInputs] = useState<VendorInputFields>(initialData || initialInputState);
   const [isLoading, setIsLoading] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -108,11 +103,7 @@ export function VendorProcessor({ initialData, onVendorSaved }: VendorProcessorP
         description: `Information for ${formInputs.vendorName} has been saved to the database.`,
       });
       if (onVendorSaved) {
-        // To refresh the list on the search page, we might need to pass a signal or new data
-        // For now, this could fetch all vendors again, or simply signal an update.
-        // This part depends on how `search-vendor-report` fetches data.
-        // Let's assume it re-fetches.
-        onVendorSaved([] as VendorInputFields[]); // Trigger a re-fetch in parent
+        onVendorSaved(); 
       }
     } catch (error) {
       console.error("Failed to save vendor to DB:", error);
@@ -137,8 +128,8 @@ export function VendorProcessor({ initialData, onVendorSaved }: VendorProcessorP
     "Red (High Risk)": "Quantitative assessed as 'Low Risk', Altman-Z as 'Moderate Risk', AND Qualitative as 'High Risk'. A 'High Risk' qualitative assessment is a strong indicator for Red."
   };
 
-  const handleDownloadReport = (format: 'txt' | 'pdf' | 'excel' | 'word') => {
-    const { vendorName, detailedAnalysis, ...restOfData } = { ...formInputs, detailedAnalysis: formInputs.keyInformation }; // Using keyInformation as detailedAnalysis for now
+  const handleDownloadReport = async (format: 'txt' | 'pdf' | 'excel' | 'word') => {
+    const { vendorName, ...restOfData } = { ...formInputs, detailedAnalysis: formInputs.keyInformation }; 
 
     const dataBankHeader = "VENDOR DATA BANK FOR FINANCIAL EVALUATION";
     const summaryHeader = "SUMMARY OF VENDOR FINANCIAL EVALUATIONS";
@@ -161,202 +152,217 @@ export function VendorProcessor({ initialData, onVendorSaved }: VendorProcessorP
         ["Band", restOfData.quantitativeBand, restOfData.altmanZBand, restOfData.qualitativeBand, ""],
         ["Risk Category", restOfData.quantitativeRiskCategory, restOfData.altmanZRiskCategory, restOfData.qualitativeRiskCategory, ""],
     ];
-    // For PDF/Word, the overall result spans rows, handled differently.
+    
+    setIsExporting(true);
+    try {
+      if (format === 'txt') {
+          const { saveAs } = await import('file-saver');
+          let content = `${dataBankHeader}\n`;
+          content += "--------------------------------------------------\n";
+          dataBankFields.forEach(field => content += `${field.label}: ${field.value || 'N/A'}\n`);
+          
+          content += `\n${summaryHeader}\n`;
+          content += "--------------------------------------------------\n";
+          content += `Quantitative: Score: ${restOfData.quantitativeScore || 'N/A'}, Band: ${restOfData.quantitativeBand || 'N/A'}, Risk: ${restOfData.quantitativeRiskCategory || 'N/A'}\n`;
+          content += `Altman - Z: Score: ${restOfData.altmanZScore || 'N/A'}, Band: ${restOfData.altmanZBand || 'N/A'}, Risk: ${restOfData.altmanZRiskCategory || 'N/A'}\n`;
+          content += `Qualitative: Score: ${restOfData.qualitativeScore || 'N/A'}, Band: ${restOfData.qualitativeBand || 'N/A'}, Risk: ${restOfData.qualitativeRiskCategory || 'N/A'}\n`;
+          content += `Overall Financial Evaluation Result: ${restOfData.overallFinancialEvaluationResult || 'N/A'}\n`;
 
-    if (format === 'txt') {
-        let content = `${dataBankHeader}\n`;
-        content += "--------------------------------------------------\n";
-        dataBankFields.forEach(field => content += `${field.label}: ${field.value || 'N/A'}\n`);
-        
-        content += `\n${summaryHeader}\n`;
-        content += "--------------------------------------------------\n";
-        content += `Quantitative: Score: ${restOfData.quantitativeScore || 'N/A'}, Band: ${restOfData.quantitativeBand || 'N/A'}, Risk: ${restOfData.quantitativeRiskCategory || 'N/A'}\n`;
-        content += `Altman - Z: Score: ${restOfData.altmanZScore || 'N/A'}, Band: ${restOfData.altmanZBand || 'N/A'}, Risk: ${restOfData.altmanZRiskCategory || 'N/A'}\n`;
-        content += `Qualitative: Score: ${restOfData.qualitativeScore || 'N/A'}, Band: ${restOfData.qualitativeBand || 'N/A'}, Risk: ${restOfData.qualitativeRiskCategory || 'N/A'}\n`;
-        content += `Overall Financial Evaluation Result: ${restOfData.overallFinancialEvaluationResult || 'N/A'}\n`;
+          content += `\n${detailedAnalysisHeader}\n--------------------------------------------------\n${formInputs.keyInformation || 'N/A'}\n`;
 
-        content += `\n${detailedAnalysisHeader}\n--------------------------------------------------\n${formInputs.keyInformation || 'N/A'}\n`;
+          content += `\n${criteriaHeader}\n--------------------------------------------------\n`;
+          Object.entries(financialCriteriaLegend).forEach(([level, criteria]) => content += `${level}: ${criteria}\n`);
 
-        content += `\n${criteriaHeader}\n--------------------------------------------------\n`;
-        Object.entries(financialCriteriaLegend).forEach(([level, criteria]) => content += `${level}: ${criteria}\n`);
+          const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+          saveAs(blob, `${vendorName}_Evaluation_Report.txt`);
+      } else if (format === 'pdf') {
+          const { default: jsPDF } = await import('jspdf');
+          const autoTable = (await import('jspdf-autotable')).default; // Extends jsPDF instance
 
-        const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
-        saveAs(blob, `${vendorName}_Evaluation_Report.txt`);
-    } else if (format === 'pdf') {
-        const doc = new jsPDF();
-        doc.setFontSize(18);
-        doc.text(vendorName + " - Financial Evaluation Report", 14, 22);
-        doc.setFontSize(11);
-        doc.setTextColor(100);
+          const doc = new jsPDF();
+          doc.setFontSize(18);
+          doc.text(vendorName + " - Financial Evaluation Report", 14, 22);
+          doc.setFontSize(11);
+          doc.setTextColor(100);
 
-        let yPos = 35;
-        doc.setFontSize(14);
-        doc.text(dataBankHeader, 14, yPos);
-        yPos += 8;
-        doc.setFontSize(10);
-        (doc as any).autoTable({
-            startY: yPos,
-            head: [['Field', 'Value']],
-            body: dataBankFields.map(f => [f.label, f.value || 'N/A']),
-            theme: 'striped',
-            styles: { fontSize: 9 },
-            headStyles: { fillColor: [38, 50, 56] }, // Dark blue-gray
-        });
-        yPos = (doc as any).lastAutoTable.finalY + 10;
+          let yPos = 35;
+          doc.setFontSize(14);
+          doc.text(dataBankHeader, 14, yPos);
+          yPos += 8;
+          doc.setFontSize(10);
+          autoTable(doc, { // Use the imported autoTable function
+              startY: yPos,
+              head: [['Field', 'Value']],
+              body: dataBankFields.map(f => [f.label, f.value || 'N/A']),
+              theme: 'striped',
+              styles: { fontSize: 9 },
+              headStyles: { fillColor: [38, 50, 56] }, 
+          });
+          yPos = (doc as any).lastAutoTable.finalY + 10;
 
-        doc.setFontSize(14);
-        doc.text(summaryHeader, 14, yPos);
-        yPos += 8;
-        doc.setFontSize(10);
-        (doc as any).autoTable({
-            startY: yPos,
-            head: [['', 'Quantitative', 'Altman - Z', 'Qualitative']],
-            body: [
-                ['Score', restOfData.quantitativeScore, restOfData.altmanZScore, restOfData.qualitativeScore],
-                ['Band', restOfData.quantitativeBand, restOfData.altmanZBand, restOfData.qualitativeBand],
-                ['Risk Category', restOfData.quantitativeRiskCategory, restOfData.altmanZRiskCategory, restOfData.qualitativeRiskCategory],
-            ],
-            theme: 'grid',
-            styles: { fontSize: 9 },
-            didDrawCell: (data: any) => {
-                if (data.column.index === 3 && data.section === 'head') { // Create a 4th conceptual column header
-                    doc.setFillColor(38, 50, 56); // Match head fill
-                    doc.rect(data.cell.x + data.cell.width, data.cell.y, data.cell.width / 2, data.cell.height, 'F'); // Adjust width as needed
-                    doc.setTextColor(255, 255, 255);
-                    doc.text("Overall Evaluation", data.cell.x + data.cell.width + 5, data.cell.y + data.row.height / 1.5);
-                }
-                if (data.column.index === 3 && data.section === 'body') { // Span the overall result text
-                     if (data.row.index === 0) { // Only draw once, starting at the first body row for this column
-                        const text = restOfData.overallFinancialEvaluationResult || 'N/A';
-                        // Calculate necessary height for text to fit
-                        const splitText = doc.splitTextToSize(text, data.cell.width / 2 - 10); // Available width
-                        const textHeight = splitText.length * (doc.getFontSize() * doc.getLineHeightFactor());
-                        const requiredCellHeight = Math.max(data.row.height * 3, textHeight + 10); // Span 3 rows or fit text
-                        
-                        doc.setFillColor(255, 255, 255); // Cell background
-                        doc.setDrawColor(200, 200, 200); // Border color
-                        doc.rect(data.cell.x + data.cell.width, data.cell.y, data.cell.width / 2, requiredCellHeight, 'FD');
-                        doc.setTextColor(0,0,0);
-                        doc.text(splitText, data.cell.x + data.cell.width + 5, data.cell.y + 5);
-                    }
-                }
-            },
-             margin: { right: 80 } // Ensure space for the "Overall Evaluation" column text
-        });
-        yPos = (doc as any).lastAutoTable.finalY + 10;
+          doc.setFontSize(14);
+          doc.text(summaryHeader, 14, yPos);
+          yPos += 8;
+          doc.setFontSize(10);
+          autoTable(doc, { // Use the imported autoTable function
+              startY: yPos,
+              head: [['', 'Quantitative', 'Altman - Z', 'Qualitative']],
+              body: [
+                  ['Score', restOfData.quantitativeScore, restOfData.altmanZScore, restOfData.qualitativeScore],
+                  ['Band', restOfData.quantitativeBand, restOfData.altmanZBand, restOfData.qualitativeBand],
+                  ['Risk Category', restOfData.quantitativeRiskCategory, restOfData.altmanZRiskCategory, restOfData.qualitativeRiskCategory],
+              ],
+              theme: 'grid',
+              styles: { fontSize: 9 },
+              didDrawCell: (data: any) => {
+                  if (data.column.index === 3 && data.section === 'head') { 
+                      doc.setFillColor(38, 50, 56); 
+                      doc.rect(data.cell.x + data.cell.width, data.cell.y, data.cell.width / 2, data.cell.height, 'F'); 
+                      doc.setTextColor(255, 255, 255);
+                      doc.text("Overall Evaluation", data.cell.x + data.cell.width + 5, data.cell.y + data.row.height / 1.5);
+                  }
+                  if (data.column.index === 3 && data.section === 'body') { 
+                       if (data.row.index === 0) { 
+                          const text = restOfData.overallFinancialEvaluationResult || 'N/A';
+                          const splitText = doc.splitTextToSize(text, data.cell.width / 2 - 10); 
+                          const textHeight = splitText.length * (doc.getFontSize() * doc.getLineHeightFactor());
+                          const requiredCellHeight = Math.max(data.row.height * 3, textHeight + 10); 
+                          
+                          doc.setFillColor(255, 255, 255); 
+                          doc.setDrawColor(200, 200, 200); 
+                          doc.rect(data.cell.x + data.cell.width, data.cell.y, data.cell.width / 2, requiredCellHeight, 'FD');
+                          doc.setTextColor(0,0,0);
+                          doc.text(splitText, data.cell.x + data.cell.width + 5, data.cell.y + 5);
+                      }
+                  }
+              },
+               margin: { right: 80 } 
+          });
+          yPos = (doc as any).lastAutoTable.finalY + 10;
 
-        doc.setFontSize(14);
-        doc.text(detailedAnalysisHeader, 14, yPos);
-        yPos += 8;
-        doc.setFontSize(10);
-        const splitDetailedAnalysis = doc.splitTextToSize(formInputs.keyInformation || 'N/A', 180);
-        doc.text(splitDetailedAnalysis, 14, yPos);
-        yPos += splitDetailedAnalysis.length * (doc.getFontSize() * 0.5) + 10; // Adjust spacing
+          doc.setFontSize(14);
+          doc.text(detailedAnalysisHeader, 14, yPos);
+          yPos += 8;
+          doc.setFontSize(10);
+          const splitDetailedAnalysis = doc.splitTextToSize(formInputs.keyInformation || 'N/A', 180);
+          doc.text(splitDetailedAnalysis, 14, yPos);
+          yPos += splitDetailedAnalysis.length * (doc.getFontSize() * 0.5) + 10; 
 
-        doc.setFontSize(14);
-        doc.text(criteriaHeader, 14, yPos);
-        yPos += 8;
-        doc.setFontSize(10);
-        (doc as any).autoTable({
-            startY: yPos,
-            head: [['Risk Level', 'Criteria']],
-            body: Object.entries(financialCriteriaLegend).map(([level, criteria]) => [level, criteria]),
-            theme: 'striped',
-            styles: { fontSize: 9 },
-        });
+          doc.setFontSize(14);
+          doc.text(criteriaHeader, 14, yPos);
+          yPos += 8;
+          doc.setFontSize(10);
+          autoTable(doc, { // Use the imported autoTable function
+              startY: yPos,
+              head: [['Risk Level', 'Criteria']],
+              body: Object.entries(financialCriteriaLegend).map(([level, criteria]) => [level, criteria]),
+              theme: 'striped',
+              styles: { fontSize: 9 },
+          });
 
-        doc.save(`${vendorName}_Evaluation_Report.pdf`);
+          doc.save(`${vendorName}_Evaluation_Report.pdf`);
 
-    } else if (format === 'excel') {
-        const wb = XLSX.utils.book_new();
-        
-        const wsDataBank = [
-            [dataBankHeader],
-            ...dataBankFields.map(f => [f.label, f.value || 'N/A'])
-        ];
-        const ws1 = XLSX.utils.aoa_to_sheet(wsDataBank);
-        XLSX.utils.book_append_sheet(wb, ws1, "Data Bank");
+      } else if (format === 'excel') {
+          const XLSX = await import('xlsx');
+          const wb = XLSX.utils.book_new();
+          
+          const wsDataBank = [
+              [dataBankHeader],
+              ...dataBankFields.map(f => [f.label, f.value || 'N/A'])
+          ];
+          const ws1 = XLSX.utils.aoa_to_sheet(wsDataBank);
+          XLSX.utils.book_append_sheet(wb, ws1, "Data Bank");
 
-        const wsSummary = [
-            [summaryHeader],
-            summaryTableData[0], // Headers
-            summaryTableData[1], // Score
-            summaryTableData[2], // Band
-            summaryTableData[3], // Risk
-            ["Overall Financial Evaluation Result", restOfData.overallFinancialEvaluationResult || 'N/A'] // Separate line for overall result
-        ];
-        const ws2 = XLSX.utils.aoa_to_sheet(wsSummary);
-        XLSX.utils.book_append_sheet(wb, ws2, "Summary");
+          const wsSummary = [
+              [summaryHeader],
+              summaryTableData[0], 
+              summaryTableData[1], 
+              summaryTableData[2], 
+              summaryTableData[3], 
+              ["Overall Financial Evaluation Result", restOfData.overallFinancialEvaluationResult || 'N/A'] 
+          ];
+          const ws2 = XLSX.utils.aoa_to_sheet(wsSummary);
+          XLSX.utils.book_append_sheet(wb, ws2, "Summary");
 
-        const wsDetailedAnalysis = [
-            [detailedAnalysisHeader],
-            [formInputs.keyInformation || 'N/A']
-        ];
-        const ws3 = XLSX.utils.aoa_to_sheet(wsDetailedAnalysis);
-        XLSX.utils.book_append_sheet(wb, ws3, "Detailed Analysis");
+          const wsDetailedAnalysis = [
+              [detailedAnalysisHeader],
+              [formInputs.keyInformation || 'N/A']
+          ];
+          const ws3 = XLSX.utils.aoa_to_sheet(wsDetailedAnalysis);
+          XLSX.utils.book_append_sheet(wb, ws3, "Detailed Analysis");
 
-        const wsCriteria = [
-            [criteriaHeader],
-            ...Object.entries(financialCriteriaLegend).map(([level, criteria]) => [level, criteria])
-        ];
-        const ws4 = XLSX.utils.aoa_to_sheet(wsCriteria);
-        XLSX.utils.book_append_sheet(wb, ws4, "Criteria Legend");
+          const wsCriteria = [
+              [criteriaHeader],
+              ...Object.entries(financialCriteriaLegend).map(([level, criteria]) => [level, criteria])
+          ];
+          const ws4 = XLSX.utils.aoa_to_sheet(wsCriteria);
+          XLSX.utils.book_append_sheet(wb, ws4, "Criteria Legend");
 
-        XLSX.writeFile(wb, `${vendorName}_Evaluation_Report.xlsx`);
+          XLSX.writeFile(wb, `${vendorName}_Evaluation_Report.xlsx`);
 
-    } else if (format === 'word') {
-        const sections = [];
-        sections.push(new Paragraph({ text: vendorName + " - Financial Evaluation Report", heading: HeadingLevel.TITLE }));
-        
-        sections.push(new Paragraph({ text: dataBankHeader, heading: HeadingLevel.HEADING_1, spacing: { before: 200, after: 100 } }));
-        const dataBankTableRows = dataBankFields.map(f => new TableRow({
-            children: [
-                new TableCell({ children: [new Paragraph(f.label)], width: { size: 30, type: WidthType.PERCENTAGE } }),
-                new TableCell({ children: [new Paragraph(f.value || 'N/A')], width: { size: 70, type: WidthType.PERCENTAGE } }),
-            ],
-        }));
-        sections.push(new DocxTable({ rows: dataBankTableRows, width: { size: 100, type: WidthType.PERCENTAGE } }));
+      } else if (format === 'word') {
+          const { Document, Packer, Paragraph, Table: DocxTable, TableCell, TableRow, TextRun, HeadingLevel, WidthType, BorderStyle } = await import('docx');
+          const { saveAs } = await import('file-saver');
 
-        sections.push(new Paragraph({ text: summaryHeader, heading: HeadingLevel.HEADING_1, spacing: { before: 200, after: 100 } }));
-        
-        const summaryDocxTableRows = [
-            new TableRow({
-                children: summaryTableData[0].map(headerText => new TableCell({ children: [new Paragraph({children: [new TextRun({text: headerText, bold: true})]})], borders: { top: {style: BorderStyle.SINGLE, size: 1}, bottom: {style: BorderStyle.SINGLE, size: 1}, left: {style: BorderStyle.SINGLE, size: 1}, right: {style: BorderStyle.SINGLE, size: 1} }})),
-                tableHeader: true,
-            }),
-            ...summaryTableData.slice(1).map((rowData, rowIndex) => new TableRow({
-                children: rowData.map((cellText, cellIndex) => {
-                    if (cellIndex === 4 && rowIndex === 0) { // Overall Result Cell
-                        return new TableCell({
-                            children: [new Paragraph(restOfData.overallFinancialEvaluationResult || 'N/A')],
-                            rowSpan: 3, // Span 3 rows
-                            borders: { top: {style: BorderStyle.SINGLE, size: 1}, bottom: {style: BorderStyle.SINGLE, size: 1}, left: {style: BorderStyle.SINGLE, size: 1}, right: {style: BorderStyle.SINGLE, size: 1} }
-                        });
-                    }
-                    if (cellIndex === 4 && rowIndex > 0) return null; // These cells are covered by rowSpan
-                    return new TableCell({ children: [new Paragraph(String(cellText || 'N/A'))], borders: { top: {style: BorderStyle.SINGLE, size: 1}, bottom: {style: BorderStyle.SINGLE, size: 1}, left: {style: BorderStyle.SINGLE, size: 1}, right: {style: BorderStyle.SINGLE, size: 1} } });
-                }).filter(cell => cell !== null) as TableCell[],
-            })),
-        ];
+          const sections = [];
+          sections.push(new Paragraph({ text: vendorName + " - Financial Evaluation Report", heading: HeadingLevel.TITLE }));
+          
+          sections.push(new Paragraph({ text: dataBankHeader, heading: HeadingLevel.HEADING_1, spacing: { before: 200, after: 100 } }));
+          const dataBankTableRows = dataBankFields.map(f => new TableRow({
+              children: [
+                  new TableCell({ children: [new Paragraph(f.label)], width: { size: 30, type: WidthType.PERCENTAGE } }),
+                  new TableCell({ children: [new Paragraph(f.value || 'N/A')], width: { size: 70, type: WidthType.PERCENTAGE } }),
+              ],
+          }));
+          sections.push(new DocxTable({ rows: dataBankTableRows, width: { size: 100, type: WidthType.PERCENTAGE } }));
 
-        sections.push(new DocxTable({ rows: summaryDocxTableRows, width: { size: 100, type: WidthType.PERCENTAGE } }));
+          sections.push(new Paragraph({ text: summaryHeader, heading: HeadingLevel.HEADING_1, spacing: { before: 200, after: 100 } }));
+          
+          const summaryDocxTableRows = [
+              new TableRow({
+                  children: summaryTableData[0].map(headerText => new TableCell({ children: [new Paragraph({children: [new TextRun({text: headerText, bold: true})]})], borders: { top: {style: BorderStyle.SINGLE, size: 1}, bottom: {style: BorderStyle.SINGLE, size: 1}, left: {style: BorderStyle.SINGLE, size: 1}, right: {style: BorderStyle.SINGLE, size: 1} }})),
+                  tableHeader: true,
+              }),
+              ...summaryTableData.slice(1).map((rowData, rowIndex) => new TableRow({
+                  children: rowData.map((cellText, cellIndex) => {
+                      if (cellIndex === 4 && rowIndex === 0) { 
+                          return new TableCell({
+                              children: [new Paragraph(restOfData.overallFinancialEvaluationResult || 'N/A')],
+                              rowSpan: 3, 
+                              borders: { top: {style: BorderStyle.SINGLE, size: 1}, bottom: {style: BorderStyle.SINGLE, size: 1}, left: {style: BorderStyle.SINGLE, size: 1}, right: {style: BorderStyle.SINGLE, size: 1} }
+                          });
+                      }
+                      if (cellIndex === 4 && rowIndex > 0) return null; 
+                      return new TableCell({ children: [new Paragraph(String(cellText || 'N/A'))], borders: { top: {style: BorderStyle.SINGLE, size: 1}, bottom: {style: BorderStyle.SINGLE, size: 1}, left: {style: BorderStyle.SINGLE, size: 1}, right: {style: BorderStyle.SINGLE, size: 1} } });
+                  }).filter(cell => cell !== null) as TableCell[],
+              })),
+          ];
 
-        sections.push(new Paragraph({ text: detailedAnalysisHeader, heading: HeadingLevel.HEADING_1, spacing: { before: 200, after: 100 } }));
-        sections.push(new Paragraph(formInputs.keyInformation || 'N/A'));
+          sections.push(new DocxTable({ rows: summaryDocxTableRows, width: { size: 100, type: WidthType.PERCENTAGE } }));
 
-        sections.push(new Paragraph({ text: criteriaHeader, heading: HeadingLevel.HEADING_1, spacing: { before: 200, after: 100 } }));
-        const criteriaTableRows = Object.entries(financialCriteriaLegend).map(([level, criteria]) => new TableRow({
-            children: [
-                new TableCell({ children: [new Paragraph(level)], width: { size: 30, type: WidthType.PERCENTAGE } }),
-                new TableCell({ children: [new Paragraph(criteria)], width: { size: 70, type: WidthType.PERCENTAGE } }),
-            ],
-        }));
-        sections.push(new DocxTable({ rows: criteriaTableRows, width: { size: 100, type: WidthType.PERCENTAGE } }));
+          sections.push(new Paragraph({ text: detailedAnalysisHeader, heading: HeadingLevel.HEADING_1, spacing: { before: 200, after: 100 } }));
+          sections.push(new Paragraph(formInputs.keyInformation || 'N/A'));
 
-        const doc = new Document({ sections: [{ children: sections }] });
-        Packer.toBlob(doc).then(blob => {
-            saveAs(blob, `${vendorName}_Evaluation_Report.docx`);
-        });
+          sections.push(new Paragraph({ text: criteriaHeader, heading: HeadingLevel.HEADING_1, spacing: { before: 200, after: 100 } }));
+          const criteriaTableRows = Object.entries(financialCriteriaLegend).map(([level, criteria]) => new TableRow({
+              children: [
+                  new TableCell({ children: [new Paragraph(level)], width: { size: 30, type: WidthType.PERCENTAGE } }),
+                  new TableCell({ children: [new Paragraph(criteria)], width: { size: 70, type: WidthType.PERCENTAGE } }),
+              ],
+          }));
+          sections.push(new DocxTable({ rows: criteriaTableRows, width: { size: 100, type: WidthType.PERCENTAGE } }));
+
+          const doc = new Document({ sections: [{ children: sections }] });
+          Packer.toBlob(doc).then(blob => {
+              saveAs(blob, `${vendorName}_Evaluation_Report.docx`);
+          });
+      }
+      toast({ title: "Export Success", description: `Report for ${vendorName} is being downloaded as ${format.toUpperCase()}.` });
+    } catch (error) {
+        console.error(`Error exporting to ${format}:`, error);
+        toast({ title: "Export Failed", description: `Could not generate ${format.toUpperCase()} report. ${error instanceof Error ? error.message : ''}`, variant: "destructive"});
+    } finally {
+        setIsExporting(false);
     }
   };
   
@@ -491,32 +497,33 @@ export function VendorProcessor({ initialData, onVendorSaved }: VendorProcessorP
           </section>
           
           <div className="flex flex-col sm:flex-row gap-2 print-hide">
-            <Button type="submit" disabled={isLoading || !formInputs.vendorName.trim()} className="flex-grow bg-primary hover:bg-primary/90 text-base py-3">
-              <Save className="mr-2 h-5 w-5" />
+            <Button type="submit" disabled={isLoading || isExporting || !formInputs.vendorName.trim()} className="flex-grow bg-primary hover:bg-primary/90 text-base py-3">
+              {isLoading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Save className="mr-2 h-5 w-5" />}
               {initialData ? 'Update Vendor Data' : 'Save Vendor Data'}
             </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="flex-grow sm:flex-none text-base py-3">
-                  <Download className="mr-2 h-5 w-5" /> Export / Print
+                <Button variant="outline" className="flex-grow sm:flex-none text-base py-3" disabled={isExporting || isLoading}>
+                  {isExporting ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Download className="mr-2 h-5 w-5" />}
+                   Export / Print
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuLabel>Export Options</DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handlePrintReport}>
+                <DropdownMenuItem onClick={handlePrintReport} disabled={isExporting}>
                   <Printer className="mr-2 h-4 w-4" /> Print Report
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleDownloadReport('txt')}>
+                <DropdownMenuItem onClick={() => handleDownloadReport('txt')} disabled={isExporting}>
                   <FileJson className="mr-2 h-4 w-4" /> Download TXT
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleDownloadReport('pdf')}>
+                <DropdownMenuItem onClick={() => handleDownloadReport('pdf')} disabled={isExporting}>
                   <FileType className="mr-2 h-4 w-4" /> Download PDF
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleDownloadReport('excel')}>
+                <DropdownMenuItem onClick={() => handleDownloadReport('excel')} disabled={isExporting}>
                   <FileSpreadsheet className="mr-2 h-4 w-4" /> Download Excel
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleDownloadReport('word')}>
+                <DropdownMenuItem onClick={() => handleDownloadReport('word')} disabled={isExporting}>
                   <FileType className="mr-2 h-4 w-4" /> Download Word
                 </DropdownMenuItem>
               </DropdownMenuContent>
@@ -530,39 +537,3 @@ export function VendorProcessor({ initialData, onVendorSaved }: VendorProcessorP
     </Card>
   );
 }
-
-// Print-specific styles - can be in globals.css or here if specific
-const PrintStyles = () => (
-  <style jsx global>{`
-    @media print {
-      body * {
-        visibility: hidden;
-      }
-      .print-container, .print-container * {
-        visibility: visible;
-      }
-      .print-container {
-        position: absolute;
-        left: 0;
-        top: 0;
-        width: 100%;
-      }
-      .print-hide {
-        display: none !important;
-      }
-      /* Add more specific print styles as needed */
-      table { page-break-inside: auto }
-      tr    { page-break-inside: avoid; page-break-after: auto }
-      thead { display: table-header-group }
-      tfoot { display: table-footer-group }
-      p, h3 { orphans: 3; widows: 3; }
-      h3 { page-break-after: avoid; }
-    }
-  `}</style>
-);
-// Add <PrintStyles /> to the component if it's not in globals.css
-// For now, it's here as an example, but better in globals.css
-// Or, just rely on the class .print-hide.
-// We'll keep it simple and use .print-hide for now.
-// Ensure .print-hide is in globals.css or a style tag in Layout.
-// I'll assume it's handled by classes.
