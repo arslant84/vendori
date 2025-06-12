@@ -55,7 +55,7 @@ export default function LandingPage() {
         <Info className="h-5 w-5 text-accent" />
         <AlertTitle className="text-accent font-semibold">Pro Tip!</AlertTitle>
         <AlertDescription className="text-muted-foreground">
-          When entering vendor data, use the "Key Information / Other Notes" field to provide specific instructions or highlight areas of concern. The AI will use this context to generate more tailored and relevant detailed analysis in your reports.
+          When entering vendor data, use the 'Key Information / Other Notes' field to provide specific context or highlight areas of concern. This information will be included in the detailed analysis section of your exported reports, making them more comprehensive.
         </AlertDescription>
       </Alert>
 
@@ -66,4 +66,3 @@ export default function LandingPage() {
     </div>
   );
 }
-
