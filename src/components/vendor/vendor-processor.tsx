@@ -18,14 +18,14 @@ import { saveVendorDb } from '@/lib/database';
 
 export interface VendorInputFields {
   vendorName: string;
-  vendorIndustry?: string;
-  companySize?: string;
+  // vendorIndustry?: string; // Removed
+  // companySize?: string; // Removed
   tenderNumber?: string;
   tenderTitle?: string;
   dateOfFinancialEvaluation?: string;
   evaluationValidityDate?: string;
   evaluatorNameDepartment?: string;
-  overallResult?: string;
+  overallResult?: string; // For VENDOR DATA BANK section
   quantitativeScore?: string;
   quantitativeBand?: string;
   quantitativeRiskCategory?: string;
@@ -35,14 +35,14 @@ export interface VendorInputFields {
   qualitativeScore?: string;
   qualitativeBand?: string;
   qualitativeRiskCategory?: string;
-  overallFinancialEvaluationResult?: string;
-  keyInformation?: string;
+  overallFinancialEvaluationResult?: string; // For SUMMARY section
+  // keyInformation?: string; // Removed
 }
 
 export const initialInputState: VendorInputFields = {
   vendorName: '',
-  vendorIndustry: '',
-  companySize: '',
+  // vendorIndustry: '', // Removed
+  // companySize: '', // Removed
   tenderNumber: '',
   tenderTitle: '',
   dateOfFinancialEvaluation: '',
@@ -59,7 +59,7 @@ export const initialInputState: VendorInputFields = {
   qualitativeBand: '',
   qualitativeRiskCategory: '',
   overallFinancialEvaluationResult: '',
-  keyInformation: '',
+  // keyInformation: '', // Removed
 };
 
 interface VendorProcessorProps {
@@ -162,7 +162,7 @@ export function VendorProcessor({ initialData, onVendorSaved }: VendorProcessorP
     try {
       if (format === 'txt') {
           const fileSaverModule = await import('file-saver');
-          const saveAs = fileSaverModule.default || fileSaverModule.saveAs; 
+          const saveAs = fileSaverModule.default || fileSaverModule.saveAs;
           if (typeof saveAs !== 'function') {
             console.error('Failed to load saveAs function from file-saver for TXT export.');
             toast({ title: "Export Error", description: "File saving utility for TXT export failed to load. Try refreshing.", variant: "destructive" });
@@ -180,7 +180,7 @@ export function VendorProcessor({ initialData, onVendorSaved }: VendorProcessorP
           content += `Qualitative: Score: ${formInputs.qualitativeScore || 'N/A'}, Band: ${formInputs.qualitativeBand || 'N/A'}, Risk: ${formInputs.qualitativeRiskCategory || 'N/A'}\n`;
           content += `Overall Financial Evaluation Result: ${formInputs.overallFinancialEvaluationResult || 'N/A'}\n`;
 
-          content += `\n${detailedAnalysisHeader}\n--------------------------------------------------\n${formInputs.keyInformation || 'N/A'}\n`;
+          content += `\n${detailedAnalysisHeader}\n--------------------------------------------------\n${'N/A'}\n`; // keyInformation removed
 
           content += `\n${criteriaHeader}\n--------------------------------------------------\n`;
           Object.entries(financialCriteriaLegend).forEach(([level, criteria]) => content += `${level}: ${criteria}\n`);
@@ -206,7 +206,7 @@ export function VendorProcessor({ initialData, onVendorSaved }: VendorProcessorP
                 toast({ title: "PDF Export Warning", description: "Report layout might be partially incorrect due to table height calculation.", variant: "default"});
                 newY += fallbackIncrement; 
             }
-            return newY + 10; // Add standard margin
+            return newY + 10; 
           };
 
           let yPos = 35;
@@ -254,21 +254,21 @@ export function VendorProcessor({ initialData, onVendorSaved }: VendorProcessorP
 
           doc.setFontSize(14);
           doc.text(detailedAnalysisHeader, 14, yPos);
-          yPos += 8; // Space for header
+          yPos += 8; 
           doc.setFontSize(10);
-          const detailedAnalysisTextContent = formInputs.keyInformation || 'N/A';
+          const detailedAnalysisTextContent = 'N/A'; // keyInformation removed
           const textLines = doc.splitTextToSize(detailedAnalysisTextContent, doc.internal.pageSize.getWidth() - 28);
           doc.text(textLines, 14, yPos);
           
           const numLines = Array.isArray(textLines) ? textLines.length : 1;
-          const singleLineHeight = doc.getTextDimensions("M").h; // Get height of a single line 'M' for current font/size
+          const singleLineHeight = doc.getTextDimensions("M").h; 
 
           if (typeof yPos === 'number' && !isNaN(yPos) && typeof singleLineHeight === 'number' && !isNaN(singleLineHeight)) {
-            yPos += (numLines * singleLineHeight) + 10; // Add height of text block + margin
+            yPos += (numLines * singleLineHeight) + 10; 
           } else {
             console.warn("PDF Export: Problem calculating detailed analysis text height. Using fallback.", { yPos, singleLineHeight });
             const previousY = (typeof yPos === 'number' && !isNaN(yPos)) ? yPos : (((doc as any).lastAutoTable?.finalY) || 200);
-            yPos = previousY + (detailedAnalysisTextContent.length > 200 ? 70 : 30); // Rough estimate plus margin
+            yPos = previousY + (detailedAnalysisTextContent.length > 200 ? 70 : 30); 
           }
 
           doc.setFontSize(14);
@@ -321,7 +321,7 @@ export function VendorProcessor({ initialData, onVendorSaved }: VendorProcessorP
 
           const wsDetailedAnalysis = [
               [detailedAnalysisHeader],
-              [formInputs.keyInformation || 'N/A']
+              ['N/A'] // keyInformation removed
           ];
           const ws3 = XLSX.utils.aoa_to_sheet(wsDetailedAnalysis);
           XLSX.utils.book_append_sheet(wb, ws3, "Detailed Analysis");
@@ -338,8 +338,7 @@ export function VendorProcessor({ initialData, onVendorSaved }: VendorProcessorP
       } else if (format === 'word') {
           const { Document, Packer, Paragraph, Table: DocxTable, TableCell, TableRow, TextRun, HeadingLevel, WidthType, BorderStyle, VerticalAlign } = await import('docx');
           const fileSaverModule = await import('file-saver');
-          const saveAs = fileSaverModule.default || fileSaverModule.saveAs; 
-
+          const saveAs = fileSaverModule.default || fileSaverModule.saveAs;
           if (typeof saveAs !== 'function') {
             console.error('Failed to load saveAs function from file-saver for Word export.');
             toast({ title: "Export Error", description: "File saving utility for Word export failed to load. Try refreshing.", variant: "destructive" });
@@ -391,7 +390,7 @@ export function VendorProcessor({ initialData, onVendorSaved }: VendorProcessorP
           sections.push(new DocxTable({ rows: summaryDocxTableRows, width: { size: 100, type: WidthType.PERCENTAGE } }));
 
           sections.push(new Paragraph({ text: detailedAnalysisHeader, heading: HeadingLevel.HEADING_1, spacing: { before: 200, after: 100 } }));
-          sections.push(new Paragraph(formInputs.keyInformation || 'N/A'));
+          sections.push(new Paragraph('N/A')); // keyInformation removed
 
           sections.push(new Paragraph({ text: criteriaHeader, heading: HeadingLevel.HEADING_1, spacing: { before: 200, after: 100 } }));
           const criteriaTableRows = Object.entries(financialCriteriaLegend).map(([level, criteria]) => new TableRow({
@@ -437,16 +436,17 @@ export function VendorProcessor({ initialData, onVendorSaved }: VendorProcessorP
         <form onSubmit={handleSubmit} className="space-y-6">
           
           <section className="space-y-4 p-4 border rounded-md">
-            <h3 className="text-lg font-semibold text-primary border-b pb-2 mb-4">Vendor Data Bank Information</h3>
+            <h3 className="text-lg font-semibold text-primary border-b pb-2 mb-4">Vendor Data Bank for Financial Evaluation</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="vendorName" className="text-foreground">Vendor Name <span className="text-destructive">*</span></Label>
+                <Label htmlFor="vendorName" className="text-foreground">Name of Company Assessed <span className="text-destructive">*</span></Label>
                 <Input id="vendorName" name="vendorName" type="text" placeholder="e.g., Acme Corp" value={formInputs.vendorName} onChange={handleInputChange} required className="mt-1" disabled={!!initialData?.vendorName && !!formInputs.vendorName} />
               </div>
               <div>
-                <Label htmlFor="overallResult" className="text-foreground">Overall Result (Data Bank)</Label>
+                <Label htmlFor="overallResult" className="text-foreground">Overall Result</Label>
                 <Input id="overallResult" name="overallResult" type="text" placeholder="e.g., Favorable, High Risk" value={formInputs.overallResult || ''} onChange={handleInputChange} className="mt-1"/>
               </div>
+              {/* Vendor Industry and Company Size removed
               <div>
                 <Label htmlFor="vendorIndustry" className="text-foreground">Vendor Industry</Label>
                 <Input id="vendorIndustry" name="vendorIndustry" type="text" placeholder="e.g., Manufacturing" value={formInputs.vendorIndustry || ''} onChange={handleInputChange} className="mt-1"/>
@@ -455,8 +455,9 @@ export function VendorProcessor({ initialData, onVendorSaved }: VendorProcessorP
                 <Label htmlFor="companySize" className="text-foreground">Company Size</Label>
                 <Input id="companySize" name="companySize" type="text" placeholder="e.g., 500 employees or Large" value={formInputs.companySize || ''} onChange={handleInputChange} className="mt-1"/>
               </div>
+              */}
               <div>
-                <Label htmlFor="tenderNumber" className="text-foreground">Tender Number</Label>
+                <Label htmlFor="tenderNumber" className="text-foreground">Tender No.</Label>
                 <Input id="tenderNumber" name="tenderNumber" type="text" placeholder="e.g., TND-2024-001" value={formInputs.tenderNumber || ''} onChange={handleInputChange} className="mt-1"/>
               </div>
               <div>
@@ -531,13 +532,13 @@ export function VendorProcessor({ initialData, onVendorSaved }: VendorProcessorP
             
             <Separator className="my-4"/>
             <div>
-              <Label htmlFor="overallFinancialEvaluationResult" className="text-foreground">Overall Financial Evaluation Result (Summary)</Label>
+              <Label htmlFor="overallFinancialEvaluationResult" className="text-foreground">Overall Financial Evaluation Result</Label>
               <Textarea id="overallFinancialEvaluationResult" name="overallFinancialEvaluationResult" placeholder="Enter overall financial evaluation summary..." value={formInputs.overallFinancialEvaluationResult || ''} onChange={handleInputChange} className="mt-1 min-h-[100px]"/>
             </div>
           </section>
           
+          {/* Section for Key Information / Other Notes removed
           <Separator />
-
           <section className="space-y-4 p-4 border rounded-md">
              <h3 className="text-lg font-semibold text-primary border-b pb-2 mb-4">Additional Notes / Detailed Analysis</h3>
             <div>
@@ -545,6 +546,7 @@ export function VendorProcessor({ initialData, onVendorSaved }: VendorProcessorP
               <Textarea id="keyInformation" name="keyInformation" placeholder="Enter any other specific details or notes..." value={formInputs.keyInformation || ''} onChange={handleInputChange} className="mt-1 min-h-[100px]"/>
             </div>
           </section>
+          */}
           
           <div className="flex flex-col sm:flex-row gap-2 print-hide">
             <Button type="submit" disabled={isLoading || isExporting || !formInputs.vendorName.trim()} className="flex-grow bg-primary hover:bg-primary/90 text-base py-3">

@@ -11,8 +11,8 @@ const DB_STORAGE_KEY = 'vendorSqliteDatabase';
 // Statically define VENDOR_COLUMNS based on the VendorInputFields interface
 const VENDOR_COLUMNS: Array<keyof VendorInputFields> = [
   'vendorName',
-  'vendorIndustry',
-  'companySize',
+  // 'vendorIndustry', // Removed
+  // 'companySize', // Removed
   'tenderNumber',
   'tenderTitle',
   'dateOfFinancialEvaluation',
@@ -29,7 +29,7 @@ const VENDOR_COLUMNS: Array<keyof VendorInputFields> = [
   'qualitativeBand',
   'qualitativeRiskCategory',
   'overallFinancialEvaluationResult',
-  'keyInformation',
+  // 'keyInformation', // Removed
 ];
 
 const initialize = async (): Promise<Database> => {
@@ -148,3 +148,4 @@ export const removeVendorDb = async (vendorName: string): Promise<void> => {
   db.run("DELETE FROM vendors WHERE vendorName = ?", [vendorName]);
   persistDb(db);
 };
+
