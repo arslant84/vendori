@@ -4,11 +4,11 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { ArrowRight, FilePlus, Search, ClipboardList, FileDown, Brain, Info } from 'lucide-react';
+import { ArrowRight, FilePlus, Search, ClipboardList, FileDown, Info } from 'lucide-react';
 
 export default function LandingPage() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background to-muted flex flex-col items-center p-6">
+    <div className="flex flex-col flex-grow min-h-screen bg-gradient-to-br from-background to-muted p-6">
       <header className="text-center mb-12">
         <h1 className="text-6xl font-headline font-black text-primary mb-4">
           Welcome to Vendor Insights
@@ -18,7 +18,7 @@ export default function LandingPage() {
         </p>
       </header>
 
-      <div className="grid grid-cols-1 md:grid-cols-1 gap-8 w-full max-w-5xl mb-12">
+      <div className="grid grid-cols-1 md:grid-cols-1 gap-8 w-full max-w-5xl mb-12 mx-auto">
         <Card className="shadow-2xl hover:shadow-primary/30 transition-shadow duration-300 rounded-xl flex flex-col">
           <CardHeader>
             <CardTitle className="text-3xl font-headline font-bold text-accent">
@@ -47,20 +47,11 @@ export default function LandingPage() {
                 </p>
               </div>
             </div>
-            <div className="flex items-start space-x-3">
-              <Brain className="h-8 w-8 text-primary flex-shrink-0 mt-1" />
-              <div>
-                <h3 className="text-xl font-semibold text-foreground">AI-Assisted Insights</h3>
-                <p className="text-muted-foreground">
-                  Input key information and notes to guide AI in generating detailed analysis and populating report sections, tailoring insights to your focus.
-                </p>
-              </div>
-            </div>
           </CardContent>
         </Card>
       </div>
 
-      <Alert className="w-full max-w-5xl shadow-lg rounded-xl border-accent">
+      <Alert className="w-full max-w-5xl shadow-lg rounded-xl border-accent mx-auto">
         <Info className="h-5 w-5 text-accent" />
         <AlertTitle className="text-accent font-semibold">Pro Tip!</AlertTitle>
         <AlertDescription className="text-muted-foreground">
@@ -68,10 +59,11 @@ export default function LandingPage() {
         </AlertDescription>
       </Alert>
 
-      <footer className="mt-16 text-center text-muted-foreground">
+      <footer className="mt-auto pt-16 text-center text-muted-foreground">
         <p>&copy; {new Date().getFullYear()} Vendor Insights. All rights reserved.</p>
         <p className="text-sm">Empowering Your Procurement Decisions.</p>
       </footer>
     </div>
   );
 }
+
