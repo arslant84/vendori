@@ -18,54 +18,7 @@ export default function LandingPage() {
         </p>
       </header>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full max-w-5xl mb-12">
-        <Card className="shadow-2xl hover:shadow-primary/30 transition-shadow duration-300 rounded-xl flex flex-col">
-          <CardHeader>
-            <CardTitle className="text-3xl font-headline font-bold text-accent">
-              Start Your Evaluation Journey
-            </CardTitle>
-            <CardDescription className="text-lg">
-              Navigate the core workflows of vendor assessment.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6 flex-grow flex flex-col justify-between">
-            <div className="space-y-4">
-              <div className="flex items-start space-x-3">
-                <FilePlus className="h-8 w-8 text-accent flex-shrink-0 mt-1" />
-                <div>
-                  <h3 className="text-xl font-semibold text-foreground">Enter New Vendor Evaluation</h3>
-                  <p className="text-muted-foreground">
-                    Easily input and save detailed financial evaluation data for new or existing vendors. All data is securely stored in your local vendor data bank.
-                  </p>
-                </div>
-              </div>
-               <div className="flex items-start space-x-3">
-                <Search className="h-8 w-8 text-accent flex-shrink-0 mt-1" />
-                <div>
-                  <h3 className="text-xl font-semibold text-foreground">Search & Retrieve Evaluations</h3>
-                  <p className="text-muted-foreground">
-                    Quickly access your Vendor Data Bank. Search for vendors, load their saved evaluations for review, updates, or report generation.
-                  </p>
-                </div>
-              </div>
-            </div>
-            <div className="mt-auto grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4">
-                <Link href="/key-in-vendor-data" passHref>
-                    <Button size="lg" className="w-full text-lg py-7 bg-accent hover:bg-accent/90">
-                        Go to Data Entry
-                        <ArrowRight className="ml-2 h-5 w-5" />
-                    </Button>
-                </Link>
-                <Link href="/search-vendor-report" passHref>
-                    <Button size="lg" className="w-full text-lg py-7 bg-accent hover:bg-accent/90">
-                        Go to Vendor Bank
-                        <ArrowRight className="ml-2 h-5 w-5" />
-                    </Button>
-                </Link>
-            </div>
-          </CardContent>
-        </Card>
-
+      <div className="grid grid-cols-1 md:grid-cols-1 gap-8 w-full max-w-5xl mb-12">
         <Card className="shadow-2xl hover:shadow-primary/30 transition-shadow duration-300 rounded-xl flex flex-col">
           <CardHeader>
             <CardTitle className="text-3xl font-headline font-bold text-accent">
