@@ -1,4 +1,3 @@
-
 // src/lib/database.ts
 'use client';
 
@@ -6,7 +5,7 @@ import initSqlJs, { type Database, type SqlValue } from 'sql.js';
 import type { VendorInputFields } from '@/components/vendor/vendor-processor';
 
 let dbPromise: Promise<Database> | null = null;
-const DB_STORAGE_KEY = 'vendorSqliteDatabase';
+const DB_FILE_PATH = '/vendors.db'; // Path to the physical database file
 
 // Statically define VENDOR_COLUMNS based on the VendorInputFields interface
 const VENDOR_COLUMNS: Array<keyof VendorInputFields> = [
@@ -35,58 +34,41 @@ const VENDOR_COLUMNS: Array<keyof VendorInputFields> = [
 const initialize = async (): Promise<Database> => {
   try {
     const SQL = await initSqlJs({ locateFile: file => `/sql-wasm.wasm` });
-    const storedDbRaw = localStorage.getItem(DB_STORAGE_KEY);
     let db: Database;
 
-    if (storedDbRaw) {
-      const dbArray = Uint8Array.from(JSON.parse(storedDbRaw));
-      db = new SQL.Database(dbArray);
-    } else {
+    try {
+      // Try to load existing database file
+      const response = await fetch(DB_FILE_PATH);
+      if (response.ok) {
+        const arrayBuffer = await response.arrayBuffer();
+        const uint8Array = new Uint8Array(arrayBuffer);
+        db = new SQL.Database(uint8Array);
+      } else {
+        // Create new database if file doesn't exist
+        db = new SQL.Database();
+        const columnDefinitions = VENDOR_COLUMNS.map(colName =>
+          `${colName} TEXT${colName === 'vendorName' ? ' PRIMARY KEY' : ''}`
+        ).join(', ');
+        const createTableQuery = `CREATE TABLE IF NOT EXISTS vendors (${columnDefinitions});`;
+        db.run(createTableQuery);
+        await saveDatabase(db);
+      }
+    } catch (error) {
+      console.error("Error loading database file:", error);
+      // Create new database if loading fails
       db = new SQL.Database();
       const columnDefinitions = VENDOR_COLUMNS.map(colName =>
         `${colName} TEXT${colName === 'vendorName' ? ' PRIMARY KEY' : ''}`
       ).join(', ');
       const createTableQuery = `CREATE TABLE IF NOT EXISTS vendors (${columnDefinitions});`;
       db.run(createTableQuery);
-      persistDb(db);
+      await saveDatabase(db);
     }
+
     return db;
   } catch (error) {
-    console.error("Database initialization encountered an error:", error); // Log the raw error
-
-    let specificMessage = "A critical error occurred during database initialization.";
-    if (error instanceof Error) {
-      const lowerCaseErrorMessage = error.message.toLowerCase();
-      // More robust check for WASM loading issues
-      if (
-        lowerCaseErrorMessage.includes("failed to execute 'compile' on 'webassembly'") ||
-        lowerCaseErrorMessage.includes("http status code is not ok") ||
-        lowerCaseErrorMessage.includes("networkerror when attempting to fetch resource") || // Firefox
-        lowerCaseErrorMessage.includes("failed to fetch") || // Generic fetch failure
-        lowerCaseErrorMessage.includes("both async and sync fetching of the wasm failed") ||
-        lowerCaseErrorMessage.includes("could not load sql-wasm.wasm") // A general check
-      ) {
-        specificMessage = "CRITICAL DATABASE ERROR: Could not load 'sql-wasm.wasm'. " +
-                          "This file is essential for database operations. " +
-                          "Please ensure 'sql-wasm.wasm' (copied from 'node_modules/sql.js/dist/sql-wasm.wasm') " +
-                          "is placed in the 'public' directory of your Next.js project. " +
-                          "The application expects to fetch it from the URL '/sql-wasm.wasm'. " +
-                          "Verify the file exists at 'public/sql-wasm.wasm' and the server can access it.";
-        console.error(specificMessage); // Log the detailed guidance
-      } else {
-        specificMessage = `Database initialization failed. Data might be lost or inaccessible. Error: ${error.message}`;
-        console.error(specificMessage);
-      }
-    } else {
-      // Handle cases where the error is not an Error instance
-      specificMessage = `An unknown error occurred during database initialization: ${String(error)}`;
-      console.error(specificMessage);
-    }
-    // Attempt to clear potentially corrupted DB from localStorage to allow a fresh start on next attempt
-    localStorage.removeItem(DB_STORAGE_KEY);
-    console.warn(`Attempted to clear potentially corrupted database from localStorage ('${DB_STORAGE_KEY}'). Please refresh the page after ensuring sql-wasm.wasm is correctly placed.`);
-
-    throw new Error(specificMessage); // Re-throw with a more informative message
+    console.error("Database initialization error:", error);
+    throw new Error("Failed to initialize database. Please ensure sql-wasm.wasm is properly loaded.");
   }
 };
 
@@ -97,9 +79,29 @@ export const getDb = (): Promise<Database> => {
   return dbPromise;
 };
 
-export const persistDb = (db: Database) => {
-  const dbArray = db.export();
-  localStorage.setItem(DB_STORAGE_KEY, JSON.stringify(Array.from(dbArray)));
+// Function to save database to file
+const saveDatabase = async (db: Database): Promise<void> => {
+  try {
+    const dbArray = db.export();
+    const blob = new Blob([dbArray], { type: 'application/x-sqlite3' });
+    
+    // Create a FormData object to send the file
+    const formData = new FormData();
+    formData.append('database', blob, 'vendors.db');
+
+    // Send the database file to the server
+    const response = await fetch('/api/save-database', {
+      method: 'POST',
+      body: formData,
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to save database file');
+    }
+  } catch (error) {
+    console.error('Error saving database:', error);
+    throw new Error('Failed to save database file');
+  }
 };
 
 export const convertResultsToObjects = (results: any[]): VendorInputFields[] => {
@@ -140,12 +142,16 @@ export const saveVendorDb = async (vendorData: VendorInputFields): Promise<void>
     stmt.run(params);
     stmt.free();
   }
-  persistDb(db);
+  
+  // Save the database to file after modifications
+  await saveDatabase(db);
 };
 
 export const removeVendorDb = async (vendorName: string): Promise<void> => {
   const db = await getDb();
   db.run("DELETE FROM vendors WHERE vendorName = ?", [vendorName]);
-  persistDb(db);
+  
+  // Save the database to file after modifications
+  await saveDatabase(db);
 };
 
