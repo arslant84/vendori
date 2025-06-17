@@ -1,39 +1,25 @@
-
 // src/contexts/AuthContext.tsx
 'use client';
 
 import type React from 'react';
-import { createContext, useContext, useEffect, useState } from 'react';
-import { onAuthStateChanged, type User } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import { createContext, useContext, useState } from 'react';
 import { Loader2 } from 'lucide-react';
+
+interface User {
+  email: string | null;
+  displayName: string | null;
+}
 
 interface AuthContextType {
   user: User | null;
   loading: boolean;
 }
 
-const AuthContext = createContext<AuthContextType>({ user: null, loading: true });
+const AuthContext = createContext<AuthContextType>({ user: null, loading: false });
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
-      setLoading(false);
-    });
-    return () => unsubscribe();
-  }, []);
-
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center min-h-screen">
-        <Loader2 className="h-12 w-12 animate-spin text-primary" />
-      </div>
-    );
-  }
+  const [loading, setLoading] = useState(false);
 
   return <AuthContext.Provider value={{ user, loading }}>{children}</AuthContext.Provider>;
 };

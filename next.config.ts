@@ -1,4 +1,3 @@
-
 import type {NextConfig} from 'next';
 
 const nextConfig: NextConfig = {
@@ -19,9 +18,6 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  experimental: {
-    allowedDevOrigins: ['https://6000-firebase-studio-1749326357854.cluster-3gc7bglotjgwuxlqpiut7yyqt4.cloudworkstations.dev'],
-  },
   webpack: (config, { isServer }) => {
     // Fixes npm packages that depend on `fs` module
     if (!isServer) {
@@ -36,6 +32,10 @@ const nextConfig: NextConfig = {
 
     return config;
   },
+  // Add proper static file handling
+  poweredByHeader: false,
+  reactStrictMode: true,
+  swcMinify: true,
 };
 
 export default nextConfig;
